@@ -162,5 +162,4 @@ CMD=(
 		"${JAVA_ARGS_APPEND[@]}" \
 		org.apache.activemq.artemis.boot.Artemis "${@}"
 )
-echo "Launching: ${CMD[@]@Q}"
 exec "${CMD[@]}"

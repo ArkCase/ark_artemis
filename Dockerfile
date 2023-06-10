@@ -119,7 +119,7 @@ RUN yum -y update && \
     curl -L -o "/artemis.tar.gz" "${SRC}" && \
     mkdir -p "${HOME_DIR}" "${CONF_DIR}" "${DATA_DIR}" "${LOGS_DIR}" "${TEMP_DIR}" && \
     tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis.tar.gz" && \
-    rm -rf "${HOME_DIR}/examples" && \
+    rm -rf "${HOME_DIR}/examples" "/artemis.tar.gz" && \
     curl -L -o "${JMX_AGENT_JAR}" "${JMX_SRC}"
 
 #

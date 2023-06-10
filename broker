@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-HAWTIO_ROLE="NO_HAWTIO_ROLE"
-
 #
 # Define base variables, according to all other containers/charts
 #

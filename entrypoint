@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euo pipefail
+
+timestamp() {
+	/usr/bin/date -Isec -u
+}
+
+say() {
+	echo -e "$(timestamp): ${@}"
+}
+
+fail() {
+	say "${@}" 1>&2
+	exit ${EXIT_CODE:-1}
+}
+
+[ -v BASE_DIR ] || BASE_DIR="/app"
+[ -v CONF_DIR ] || CONF_DIR="${BASE_DIR}/conf"
+[ -v DATA_DIR ] || DATA_DIR="${BASE_DIR}/data"
+[ -v LOGS_DIR ] || LOGS_DIR="${BASE_DIR}/logs"
+
+# Fork into the application
+[ -v JAVA_MEM_ARGS ] || JAVA_ARGS="-XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0"
+export JAVA_MEM_ARGS
+
+# Update the SSL stuff
+/update-ssl
+
+[ -e "${CONF_DIR}" ] || fail "The data directory [${CONF_DIR}] does not exist"
+[ -d "${CONF_DIR}" ] || fail "The path [${CONF_DIR}] is not a directory"
+[ -r "${CONF_DIR}" ] || fail "The data directory [${CONF_DIR}] is not readable by ${USER} (${UID}:$(id -g))"
+[ -w "${CONF_DIR}" ] || fail "The data directory [${CONF_DIR}] is not writable by ${USER} (${UID}:$(id -g))"
+[ -x "${CONF_DIR}" ] || fail "The data directory [${CONF_DIR}] is not executable by ${USER} (${UID}:$(id -g))"
+
+[ -e "${DATA_DIR}" ] || fail "The data directory [${DATA_DIR}] does not exist"
+[ -d "${DATA_DIR}" ] || fail "The path [${DATA_DIR}] is not a directory"
+[ -r "${DATA_DIR}" ] || fail "The data directory [${DATA_DIR}] is not readable by ${USER} (${UID}:$(id -g))"
+[ -w "${DATA_DIR}" ] || fail "The data directory [${DATA_DIR}] is not writable by ${USER} (${UID}:$(id -g))"
+[ -x "${DATA_DIR}" ] || fail "The data directory [${DATA_DIR}] is not executable by ${USER} (${UID}:$(id -g))"
+
+[ -e "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] does not exist"
+[ -d "${LOGS_DIR}" ] || fail "The path [${LOGS_DIR}] is not a directory"
+[ -r "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] is not readable by ${USER} (${UID}:$(id -g))"
+[ -w "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] is not writable by ${USER} (${UID}:$(id -g))"
+[ -x "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] is not executable by ${USER} (${UID}:$(id -g))"
+
+# Substitute the hostname where appropriate
+/usr/bin/cat "${CONF_DIR}/broker.xml.template" | \
+	/usr/bin/sed -e "s;\${POD_HOSTNAME};$(hostname);g" > "${CONF_DIR}/broker.xml"
+
+CMD="${HOME_DIR}/bin/broker"
+[ ${#} -lt 1 ] && set -- "run"
+say "Launching: "${CMD@Q}" "${@@Q}""
+exec "${CMD}" "${@}"

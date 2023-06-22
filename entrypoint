@@ -59,9 +59,34 @@ fi
 [ -w "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] is not writable by ${USER} (${UID}:$(id -g))"
 [ -x "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] is not executable by ${USER} (${UID}:$(id -g))"
 
+export POD_HOSTNAME="$(hostname)"
+
+if [ ! -v NODE_ID ] ; then
+	say "No NODE_ID envvar was given, will attempt to guess it"
+	if [ ! -v POD_NAME ] ; then
+		say "No POD_NAME variable was found, will use the first component of the hostname instead"
+		POD_NAME="${POD_HOSTNAME%%.*}"
+	fi
+	[[ "${POD_NAME}" =~ ^.*-([0-9]+)$ ]] || fail "The pod name [${POD_NAME}] doesn't match the pattern for a stateful pod (must end with a number)"
+	NODE_ID="${BASH_REMATCH[1]}"
+fi
+[[ "${NODE_ID}" =~ ^[0-9]+$ ]] || fail "The NODE_ID value [${NODE_ID}] is not a valid number"
+
+# Remove leading zeros
+export NODE_ID="$(( 10#${NODE_ID} ))"
+
 # Substitute the hostname where appropriate
 /usr/bin/cat "${CONF_DIR}/broker.xml.template" | \
-	/usr/bin/sed -e "s;\${POD_HOSTNAME};$(hostname);g" > "${CONF_DIR}/broker.xml"
+	/usr/bin/sed -e "s;\${POD_HOSTNAME};${POD_HOSTNAME};g" | \
+	/usr/bin/xmlstarlet ed -P \
+		-N "root=urn:activemq" \
+		-N "core=urn:activemq:core" \
+		--delete "/root:configuration/core:core/core:connectors/core:connector[@name = 'node-${NODE_ID}']" | \
+	/usr/bin/xmlstarlet ed -P \
+		-N "root=urn:activemq" \
+		-N "core=urn:activemq:core" \
+		--delete "/root:configuration/core:core/core:cluster-connections/core:cluster-connection/core:static-connectors/core:connector-ref[text() = 'node-${NODE_ID}']"  \
+	> "${CONF_DIR}/broker.xml"
 
 CMD="${HOME_DIR}/bin/broker"
 [ ${#} -lt 1 ] && set -- "run"

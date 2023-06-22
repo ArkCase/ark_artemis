@@ -114,6 +114,7 @@ RUN yum -y update && \
         java-11-openjdk-devel \
         libaio \
         sudo \
+        xmlstarlet \
     && \
     yum -y clean all && \
     curl -L -o "/artemis.tar.gz" "${SRC}" && \

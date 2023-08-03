@@ -114,7 +114,6 @@ RUN yum -y update && \
         java-11-openjdk-devel \
         libaio \
         sudo \
-        tzdata-java \
         xmlstarlet \
     && \
     yum -y clean all && \

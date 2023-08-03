@@ -31,10 +31,10 @@ ARG BASE_REPO="arkcase/base"
 ARG BASE_TAG="8.7.0"
 ARG ARCH="amd64"
 ARG OS="linux"
-ARG VER="2.28.0"
-ARG BLD="02"
+ARG VER="2.30.0"
+ARG BLD="01"
 ARG PKG="artemis"
-ARG SRC="https://dlcdn.apache.org/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
+ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JMX_VER="0.17.0"
 ARG JMX_SRC="https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${JMX_VER}/jmx_prometheus_javaagent-${JMX_VER}.jar"
 
@@ -114,6 +114,7 @@ RUN yum -y update && \
         java-11-openjdk-devel \
         libaio \
         sudo \
+        tzdata-java \
         xmlstarlet \
     && \
     yum -y clean all && \

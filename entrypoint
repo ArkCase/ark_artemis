@@ -2,7 +2,7 @@
 set -euo pipefail
 
 timestamp() {
-	/usr/bin/date -Isec -u
+	/usr/bin/date -Ins -u
 }
 
 say() {
@@ -12,6 +12,17 @@ say() {
 fail() {
 	say "${@}" 1>&2
 	exit ${EXIT_CODE:-1}
+}
+
+xml_escape() {
+	local V="${1}"
+	V="${V//</&lt;}"
+	V="${V//>/&gt;}"
+	V="${V//\"/&quot;}"
+	V="${V//\'/&apos;}"
+	V="${V//&/&amp;}"
+	V="${V//;/%3B}"
+	echo -n "${V}"
 }
 
 [ -v BASE_DIR ] || BASE_DIR="/app"
@@ -24,7 +35,8 @@ fail() {
 export JAVA_MEM_ARGS
 
 # Update the SSL stuff
-/update-ssl
+[ -v SSL_DIR ] || SSL_DIR="/.ssl"
+acme-init
 
 MAX_BOOT_DELAY="60"
 if [ -v BOOT_DELAY ] && [[ "${BOOT_DELAY}" =~ ^[0-9]+$ ]] ; then
@@ -75,9 +87,14 @@ fi
 # Remove leading zeros
 export NODE_ID="$(( 10#${NODE_ID} ))"
 
+KEYSTORE_PASSWORD="$(<"${SSL_DIR}/keystore.pass")" || fail "Failed to read the SSL keystore password"
+KEYSTORE_PASSWORD="$(xml_escape "${KEYSTORE_PASSWORD}")"
+
 # Substitute the hostname where appropriate
 /usr/bin/cat "${CONF_DIR}/broker.xml.template" | \
-	/usr/bin/sed -e "s;\${POD_HOSTNAME};${POD_HOSTNAME};g" | \
+	/usr/bin/sed \
+		-e "s;\${POD_HOSTNAME};${POD_HOSTNAME};g" \
+		-e "s;\${KEYSTORE_PASSWORD};${KEYSTORE_PASSWORD};g" | \
 	/usr/bin/xmlstarlet ed -P \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \
@@ -85,7 +102,7 @@ export NODE_ID="$(( 10#${NODE_ID} ))"
 	/usr/bin/xmlstarlet ed -P \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \
-		--delete "/root:configuration/core:core/core:cluster-connections/core:cluster-connection/core:static-connectors/core:connector-ref[text() = 'node-${NODE_ID}']"  \
+		--delete "/root:configuration/core:core/core:cluster-connections/core:cluster-connection/core:static-connectors/core:connector-ref[text() = 'node-${NODE_ID}']" \
 	> "${CONF_DIR}/broker.xml"
 
 CMD="${HOME_DIR}/bin/broker"

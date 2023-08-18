@@ -28,11 +28,11 @@
 
 ARG PUBLIC_REGISTRY="public.ecr.aws"
 ARG BASE_REPO="arkcase/base"
-ARG BASE_TAG="8.7.0"
+ARG BASE_TAG="8.8-01"
 ARG ARCH="amd64"
 ARG OS="linux"
 ARG VER="2.30.0"
-ARG BLD="01"
+ARG BLD="02"
 ARG PKG="artemis"
 ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JMX_VER="0.17.0"
@@ -142,11 +142,6 @@ RUN rm -rf /tmp/* && \
     chown -R "${APP_USER}:${APP_GROUP}" "${BASE_DIR}" && \
     chmod -R "u=rwX,g=rX,o=" "${BASE_DIR}" && \
     chmod 0755 /entrypoint
-
-COPY --chown=root:root update-ssl /
-COPY --chown=root:root 00-update-ssl /etc/sudoers.d/
-RUN chmod 0640 /etc/sudoers.d/00-update-ssl && \
-    sed -i -e "s;\${ACM_GROUP};${ACM_GROUP};g" /etc/sudoers.d/00-update-ssl
 
 #
 # Launch as the application's user

@@ -49,8 +49,6 @@ ARG APP_UID="1998"
 ARG APP_GID="${APP_UID}"
 ARG APP_USER="${PKG}"
 ARG APP_GROUP="${APP_USER}"
-ARG ACM_GID="10000"
-ARG ACM_GROUP="acm"
 ARG BASE_DIR="/app"
 ARG HOME_DIR="${BASE_DIR}/${PKG}"
 ARG CONF_DIR="${BASE_DIR}/conf"
@@ -90,8 +88,6 @@ ENV APP_UID="${APP_UID}"
 ENV APP_GID="${APP_GID}"
 ENV APP_USER="${APP_USER}"
 ENV APP_GROUP="${APP_GROUP}"
-ENV ACM_USER="${ACM_USER}"
-ENV ACM_GROUP="${ACM_GROUP}"
 
 # Environment variables: Java stuff
 ENV JAVA_HOME="/usr/lib/jvm/jre-11-openjdk"
@@ -132,8 +128,7 @@ COPY --chown=root:root entrypoint /
 #
 # Create the required user/group
 #
-RUN groupadd --gid "${ACM_GID}" "${ACM_GROUP}" && \
-    groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
+RUN groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
     useradd  --uid "${APP_UID}" --gid "${APP_GROUP}" --groups "${ACM_GROUP}" --create-home --home-dir "${HOME_DIR}" "${APP_USER}"
 
 COPY broker "${HOME_DIR}/bin/broker"

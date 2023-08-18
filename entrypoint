@@ -36,7 +36,14 @@ export JAVA_MEM_ARGS
 
 # Update the SSL stuff
 [ -v SSL_DIR ] || SSL_DIR="/.ssl"
+
+# This is done because we can't risk having "weird" characters in the password
+# b/c we can't find docs on how to escape said weird characters so they won't
+# trip up netty's URL parsing. Using this model ensures our password will only
+# contain alphanumeric characters (letters in both cases, and numbers)
+export ACME_KEYSTORE_PASSWORD="$(tr -dc '[:alnum:]' < /dev/urandom | fold -w ${1:-32} | head -1)"
 acme-init
+unset ACME_KEYSTORE_PASSWORD
 
 MAX_BOOT_DELAY="60"
 if [ -v BOOT_DELAY ] && [[ "${BOOT_DELAY}" =~ ^[0-9]+$ ]] ; then

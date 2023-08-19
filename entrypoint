@@ -41,9 +41,7 @@ export JAVA_MEM_ARGS
 # b/c we can't find docs on how to escape said weird characters so they won't
 # trip up netty's URL parsing. Using this model ensures our password will only
 # contain alphanumeric characters (letters in both cases, and numbers)
-export ACME_KEYSTORE_PASSWORD="$(tr -dc '[:alnum:]' < /dev/urandom | fold -w ${1:-32} | head -1)"
 acme-init
-unset ACME_KEYSTORE_PASSWORD
 
 MAX_BOOT_DELAY="60"
 if [ -v BOOT_DELAY ] && [[ "${BOOT_DELAY}" =~ ^[0-9]+$ ]] ; then
@@ -111,6 +109,11 @@ KEYSTORE_PASSWORD="$(xml_escape "${KEYSTORE_PASSWORD}")"
 		-N "core=urn:activemq:core" \
 		--delete "/root:configuration/core:core/core:cluster-connections/core:cluster-connection/core:static-connectors/core:connector-ref[text() = 'node-${NODE_ID}']" \
 	> "${CONF_DIR}/broker.xml"
+
+[ -v JAVA_TOOL_OPTIONS ] || JAVA_TOOL_OPTIONS=""
+
+# Require SSL for Zookeeper
+JAVA_TOOL_OPTIONS+=" -Dzookeeper.client.secure=true"
 
 CMD="${HOME_DIR}/bin/broker"
 [ ${#} -lt 1 ] && set -- "run"

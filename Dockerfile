@@ -105,8 +105,7 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 #
 # Update local packages and install required packages
 #
-RUN yum -y update && \
-    yum -y install \
+RUN yum -y install \
         java-11-openjdk-devel \
         libaio \
         sudo \

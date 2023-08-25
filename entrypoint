@@ -97,8 +97,8 @@ KEYSTORE_PASSWORD="$(<"${SSL_DIR}/keystore.pass")" || fail "Failed to read the S
 KEYSTORE_PASSWORD="$(xml_escape "${KEYSTORE_PASSWORD}")"
 
 # No need to XML-escape this value, as xmlstarlet will do it for us (also, don't allow empty values)
-[ -v CLUSTER_PASSWORD ] || CLUSTER_PASSWORD=""
-[ -n "${CLUSTER_PASSWORD}" ] || CLUSTER_PASSWORD="PBWaPfidc5Ko8kiof4338RvxZsWwwPOFtDMYF62IXDd5aWGJotw6QH2ARIozKPWE"
+[ -v ARTEMIS_CLUSTER_PASSWORD ] || ARTEMIS_CLUSTER_PASSWORD=""
+[ -n "${ARTEMIS_CLUSTER_PASSWORD}" ] || ARTEMIS_CLUSTER_PASSWORD="PBWaPfidc5Ko8kiof4338RvxZsWwwPOFtDMYF62IXDd5aWGJotw6QH2ARIozKPWE"
 
 # Substitute the hostname where appropriate
 /usr/bin/cat "${CONF_DIR}/broker.xml.template" | \
@@ -112,7 +112,7 @@ KEYSTORE_PASSWORD="$(xml_escape "${KEYSTORE_PASSWORD}")"
 	/usr/bin/xmlstarlet ed -P \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \
-		--update "/root:configuration/core:core/core:cluster-password" -v "${CLUSTER_PASSWORD}" | \
+		--update "/root:configuration/core:core/core:cluster-password" -v "${ARTEMIS_CLUSTER_PASSWORD}" | \
 	/usr/bin/xmlstarlet ed -P \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \

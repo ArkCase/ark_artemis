@@ -92,8 +92,13 @@ fi
 # Remove leading zeros
 export NODE_ID="$(( 10#${NODE_ID} ))"
 
+# We need to XML-escape this value b/c it will get substituted into text values
 KEYSTORE_PASSWORD="$(<"${SSL_DIR}/keystore.pass")" || fail "Failed to read the SSL keystore password"
 KEYSTORE_PASSWORD="$(xml_escape "${KEYSTORE_PASSWORD}")"
+
+# No need to XML-escape this value, as xmlstarlet will do it for us (also, don't allow empty values)
+[ -v CLUSTER_PASSWORD ] || CLUSTER_PASSWORD=""
+[ -n "${CLUSTER_PASSWORD}" ] || CLUSTER_PASSWORD="PBWaPfidc5Ko8kiof4338RvxZsWwwPOFtDMYF62IXDd5aWGJotw6QH2ARIozKPWE"
 
 # Substitute the hostname where appropriate
 /usr/bin/cat "${CONF_DIR}/broker.xml.template" | \
@@ -104,6 +109,10 @@ KEYSTORE_PASSWORD="$(xml_escape "${KEYSTORE_PASSWORD}")"
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \
 		--delete "/root:configuration/core:core/core:connectors/core:connector[@name = 'node-${NODE_ID}']" | \
+	/usr/bin/xmlstarlet ed -P \
+		-N "root=urn:activemq" \
+		-N "core=urn:activemq:core" \
+		--update "/root:configuration/core:core/core:cluster-password" -v "${CLUSTER_PASSWORD}" | \
 	/usr/bin/xmlstarlet ed -P \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \

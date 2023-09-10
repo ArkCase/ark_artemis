@@ -113,8 +113,8 @@ KEYSTORE_PASSWORD="$(<"${SSL_DIR}/keystore.pass")" || fail "Failed to read the S
 cat "${CONF_DIR}/bootstrap.xml.template" | \
 	/usr/bin/xmlstarlet ed -P \
 		-N "root=http://activemq.apache.org/schema" \
-		--update "/root:broker/root:web[@path = 'web']/root:binding/@keystorePath" -v "${KEYSTORE}" \
-		--update "/root:broker/root:web[@path = 'web']/root:binding/@keystorePassword" -v "${KEYSTORE_PASSWORD}" \
+		--update "/root:broker/root:web[@path = 'web']/root:binding/@keyStorePath" -v "${KEYSTORE}" \
+		--update "/root:broker/root:web[@path = 'web']/root:binding/@keyStorePassword" -v "${KEYSTORE_PASSWORD}" \
 	> "${CONF_DIR}/bootstrap.xml"
 
 # Substitute the hostname where appropriate

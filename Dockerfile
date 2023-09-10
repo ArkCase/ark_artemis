@@ -12,7 +12,7 @@
 #
 # How to run: (Docker)
 #
-# docker run --name ark_artemis -p 8161:8161  -d arkcase/artemis:latest 
+# docker run --name ark_artemis -p 8443:8443  -d arkcase/artemis:latest
 # docker exec -it ark_artemis /bin/bash
 # docker stop ark_artemis
 # docker rm ark_artemis
@@ -20,7 +20,7 @@
 # How to run: (Kubernetes)
 #
 # kubectl create -f pod_ark_artemis.yaml
-# kubectl --namespace default port-forward artemis 8080:8161 --address='0.0.0.0'
+# kubectl --namespace default port-forward artemis 8443:8443 --address='0.0.0.0'
 # kubectl exec -it pod/artemis -- bash
 # kubectl delete -f pod_ark_artemis.yaml
 #
@@ -143,7 +143,7 @@ RUN rm -rf /tmp/* && \
 USER "${APP_USER}"
 WORKDIR "${HOME_DIR}"
 
-EXPOSE 8161
+EXPOSE 8443
 EXPOSE 61613
 EXPOSE 61616
 

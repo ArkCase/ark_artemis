@@ -29,7 +29,7 @@
 ARG PUBLIC_REGISTRY="public.ecr.aws"
 ARG ARCH="amd64"
 ARG OS="linux"
-ARG VER="2.30.0"
+ARG VER="2.31.2"
 ARG PKG="artemis"
 ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JMX_VER="0.17.0"

@@ -29,10 +29,10 @@
 ARG PUBLIC_REGISTRY="public.ecr.aws"
 ARG ARCH="amd64"
 ARG OS="linux"
-ARG VER="2.31.2"
+ARG VER="2.33.0"
 ARG PKG="artemis"
 ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
-ARG JMX_VER="0.17.0"
+ARG JMX_VER="0.20.0"
 ARG JMX_SRC="https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${JMX_VER}/jmx_prometheus_javaagent-${JMX_VER}.jar"
 
 ARG BASE_REPO="arkcase/base"

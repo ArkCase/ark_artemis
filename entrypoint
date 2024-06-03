@@ -207,8 +207,8 @@ if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 	[ -v ARTEMIS_ADMIN_PASSWORD ] || ARTEMIS_ADMIN_PASSWORD=""
 	[ -n "${ARTEMIS_ADMIN_PASSWORD}" ] || fail "Cannot have an empty administrator password"
 
-	[ -v ARTEMIS_ADMIN_ROLE ] || ARTEMIS_ADMIN_ROLE=""
-	[ -n "${ARTEMIS_ADMIN_ROLE}" ] || ARTEMIS_ADMIN_ROLE="administrator"
+	[ -v ARTEMIS_ADMIN_ROLES ] || ARTEMIS_ADMIN_ROLES=""
+	[ -n "${ARTEMIS_ADMIN_ROLES}" ] || ARTEMIS_ADMIN_ROLES="administrator"
 
 	#
 	# Render the user/roles files ...
@@ -223,25 +223,28 @@ if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 	# First, the administrator
 	#
 	add_user  "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_PASSWORD}" "${USERS_FILE}"
-	add_roles "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_ROLE}" "${ROLES_FILE}"
+	add_roles "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_ROLES}"    "${ROLES_FILE}"
 
 	# The guest
 	add_user "guest" "guest" "${USERS_FILE}"
 
 	# Now add the dynamic users
-	for CRED in "${!ARTEMIS_CRED_USERNAME_@}" ; do
-		[[ "${CRED}" =~ ^ARTEMIS_CRED_USERNAME_([0-9]+)$ ]] || continue
+	for USERNAME in "${!ARTEMIS_CRED_USERNAME_@}" ; do
+		[[ "${USERNAME}" =~ ^ARTEMIS_CRED_USERNAME_([0-9]+)$ ]] || continue
 		NUM="${BASH_REMATCH[1]}"
 
+		# Ignore empty usernames
+		[ -n "${!USERNAME}" ] || continue
+
 		# If there's no password for the user, we skip it
-		PASS="ARTEMIS_CRED_PASSWORD_${NUM}"
-		[ -v "${PASS}" ] || continue
-		add_user "${!CRED}" "${!PASS}" "${USERS_FILE}"
+		PASSWORD="ARTEMIS_CRED_PASSWORD_${NUM}"
+		[ -v "${PASSWORD}" ] || continue
+		add_user "${!USERNAME}" "${!PASSWORD}" "${USERS_FILE}"
 
 		# If there are no roles for the user, we skip'em
 		ROLES="ARTEMIS_CRED_ROLES_${NUM}"
 		[ -v "${ROLES}" ] || continue
-		add_roles "${!CRED}" "${!ROLES}" "${ROLES_FILE}"
+		add_roles "${!USERNAME}" "${!ROLES}" "${ROLES_FILE}"
 	done
 
 	ok "Users generated"

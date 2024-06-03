@@ -1,20 +1,34 @@
 #!/bin/bash
 set -euo pipefail
 
-timestamp() {
+timestamp()
+{
 	/usr/bin/date -Ins -u
 }
 
-say() {
+say()
+{
 	echo -e "$(timestamp): ${@}"
 }
 
-fail() {
-	say "${@}" 1>&2
+ok()
+{
+	say "✅ ${@}"
+}
+
+err()
+{
+	say "❌ ${@}"
+}
+
+fail()
+{
+	err "${@}"
 	exit ${EXIT_CODE:-1}
 }
 
-xml_escape() {
+xml_escape()
+{
 	local V="${1}"
 	V="${V//&/&amp;}"
 	V="${V//</&lt;}"
@@ -24,12 +38,60 @@ xml_escape() {
 	echo -n "${V}"
 }
 
-url_escape() {
+hash_password()
+{
+	local PASSWORD="${1}"
+	local HASH="$(artemis mask --hash "${PASSWORD}" | awk '{ print $2 }' | tr -d '\n')"
+	echo -n "ENC(${HASH})"
+}
+
+csv_to_list()
+{
+	tr ',' '\n' | sed -e '/^\s*$/d' | sort
+}
+
+add_user()
+{
+	local USERNAME="${1}"
+	local PASSWORD="${2}"
+	local FILE="${3}"
+	echo "${USERNAME} = $(hash_password "${PASSWORD}")" >> "${FILE}"
+}
+
+add_roles()
+{
+	local USERNAME="${1}"
+	local ROLES="${2}"
+	local FILE="${3}"
+
+	local R=()
+	local MEM=()
+	readarray -t R < <(csv_to_list <<< "${ROLES}")
+	for ROLE in "${R[@]}" ; do
+		# get the list of members
+		readarray -t MEM < <(csv_to_list < <(grep -E "^\s*${ROLE}\s*=" "${FILE}" | sed -e 's;^.*=;;g'))
+
+		# add the user
+		MEM+=("${USERNAME}")
+
+		# sort alphabetically and uniquely
+		MEM="$(echo -n "${MEM[@]}" | tr ' ' '\n' | sort -u | sed -e '/^\s*$/d' | tr '\n' ',' | sed -e 's;,$;;g')"
+
+		# replace the existing roles line from the file
+		sed -i -e "/^\s*${ROLE}\s*=/d" "${FILE}"
+
+		echo "${ROLE} = ${MEM}" >> "${FILE}"
+	done
+}
+
+url_escape()
+{
 	local V="${1}"
 	echo -n "${V}" | /usr/bin/jq -sRr @uri
 }
 
-sed_escape() {
+sed_escape()
+{
 	local V="${1}"
 	echo -n "${V}" | /usr/bin/sed -e 's;&;\\&;g'
 }
@@ -133,6 +195,61 @@ cat "${CONF_DIR}/bootstrap.xml.template" | \
 		-e "s'\${KEYSTORE}'$(sed_escape "$(xml_escape "$(url_escape "${KEYSTORE}")")")'g" \
 		-e "s'\${KEYSTORE_PASSWORD}'$(sed_escape "$(xml_escape "$(url_escape "${KEYSTORE_PASSWORD}")")")'g" \
 	> "${CONF_DIR}/broker.xml"
+
+#
+# Enable the new, environment-based authentication scheme
+#
+if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
+
+	[ -v ARTEMIS_ADMIN_USERNAME ] || ARTEMIS_ADMIN_USERNAME=""
+	[ -n "${ARTEMIS_ADMIN_USERNAME}" ] || ARTEMIS_ADMIN_USERNAME="admin"
+
+	[ -v ARTEMIS_ADMIN_PASSWORD ] || ARTEMIS_ADMIN_PASSWORD=""
+	[ -n "${ARTEMIS_ADMIN_PASSWORD}" ] || fail "Cannot have an empty administrator password"
+
+	[ -v ARTEMIS_ADMIN_ROLE ] || ARTEMIS_ADMIN_ROLE=""
+	[ -n "${ARTEMIS_ADMIN_ROLE}" ] || ARTEMIS_ADMIN_ROLE="administrator"
+
+	#
+	# Render the user/roles files ...
+	#
+	USERS_FILE="${CONF_DIR}/artemis-users.properties"
+	ROLES_FILE="${CONF_DIR}/artemis-roles.properties"
+
+	:> "${USERS_FILE}" || fail "Failed to truncate the users file at [${USERS_FILE}]"
+	:> "${ROLES_FILE}" || fail "Failed to truncate the roles file at [${ROLES_FILE}]"
+
+	#
+	# First, the administrator
+	#
+	add_user  "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_PASSWORD}" "${USERS_FILE}"
+	add_roles "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_ROLE}" "${ROLES_FILE}"
+
+	# The guest
+	add_user "guest" "guest" "${USERS_FILE}"
+
+	# Now add the dynamic users
+	for CRED in "${!ARTEMIS_CRED_USERNAME_@}" ; do
+		[[ "${CRED}" =~ ^ARTEMIS_CRED_USERNAME_([0-9]+)$ ]] || continue
+		NUM="${BASH_REMATCH[1]}"
+
+		# If there's no password for the user, we skip it
+		PASS="ARTEMIS_CRED_PASSWORD_${NUM}"
+		[ -v "${PASS}" ] || continue
+		add_user "${!CRED}" "${!PASS}" "${USERS_FILE}"
+
+		# If there are no roles for the user, we skip'em
+		ROLES="ARTEMIS_CRED_ROLES_${NUM}"
+		[ -v "${ROLES}" ] || continue
+		add_roles "${!CRED}" "${!ROLES}" "${ROLES_FILE}"
+	done
+
+	ok "Users generated"
+	cat "${USERS_FILE}"
+	ok "Roles generated"
+	cat "${ROLES_FILE}"
+	ok "Authentication configured"
+fi
 
 [ -v JAVA_TOOL_OPTIONS ] || JAVA_TOOL_OPTIONS=""
 

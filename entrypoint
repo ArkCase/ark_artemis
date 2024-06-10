@@ -187,7 +187,7 @@ cat "${CONF_DIR}/bootstrap.xml.template" | \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \
 		--update "/root:configuration/core:core/core:name" -v "${POD_HOSTNAME}" \
-		--update "/root:configuration/core:core/core:ha-policy/core:replication/core:primary/core:manager/core:properties/core:property[@key = 'connect-string']" -v "${ZK_HOST}" \
+		--update "/root:configuration/core:core/core:ha-policy/core:replication/core:primary/core:manager/core:properties/core:property[@key = 'connect-string']/@value" -v "${ZK_HOST}" \
 		--update "/root:configuration/core:core/core:cluster-password" -v "${ARTEMIS_CLUSTER_PASSWORD}" \
 		--delete "/root:configuration/core:core/core:connectors/core:connector[@name = 'node-${NODE_ID}']" \
 		--delete "/root:configuration/core:core/core:cluster-connections/core:cluster-connection/core:static-connectors/core:connector-ref[text() = 'node-${NODE_ID}']" | \

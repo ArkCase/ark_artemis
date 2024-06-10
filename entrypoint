@@ -171,6 +171,8 @@ KEYSTORE_PASSWORD="$(<"${SSL_DIR}/keystore.pass")" || fail "Failed to read the S
 [ -v ARTEMIS_CLUSTER_PASSWORD ] || ARTEMIS_CLUSTER_PASSWORD=""
 [ -n "${ARTEMIS_CLUSTER_PASSWORD}" ] || ARTEMIS_CLUSTER_PASSWORD="PBWaPfidc5Ko8kiof4338RvxZsWwwPOFtDMYF62IXDd5aWGJotw6QH2ARIozKPWE"
 
+[ -v ZK_HOST ] || ZK_HOST=""
+
 # Set the SSL protection for the UI console
 cat "${CONF_DIR}/bootstrap.xml.template" | \
 	/usr/bin/xmlstarlet ed -P \
@@ -185,6 +187,7 @@ cat "${CONF_DIR}/bootstrap.xml.template" | \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \
 		--update "/root:configuration/core:core/core:name" -v "${POD_HOSTNAME}" \
+		--update "/root:configuration/core:core/core:ha-policy/core:replication/core:primary/core:manager/core:properties/core:property[@key = 'connect-string']" -v "${ZK_HOST}" \
 		--update "/root:configuration/core:core/core:cluster-password" -v "${ARTEMIS_CLUSTER_PASSWORD}" \
 		--delete "/root:configuration/core:core/core:connectors/core:connector[@name = 'node-${NODE_ID}']" \
 		--delete "/root:configuration/core:core/core:cluster-connections/core:cluster-connection/core:static-connectors/core:connector-ref[text() = 'node-${NODE_ID}']" | \

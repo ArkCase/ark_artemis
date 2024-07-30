@@ -232,20 +232,20 @@ if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 	add_user "guest" "guest" "${USERS_FILE}"
 
 	# Now add the dynamic users
-	for USERNAME in "${!ARTEMIS_CRED_USERNAME_@}" ; do
-		[[ "${USERNAME}" =~ ^ARTEMIS_CRED_USERNAME_([0-9]+)$ ]] || continue
+	for USERNAME in "${!ARTEMIS_USERNAME_@}" ; do
+		[[ "${USERNAME}" =~ ^ARTEMIS_USERNAME_([0-9]+)$ ]] || continue
 		NUM="${BASH_REMATCH[1]}"
 
 		# Ignore empty usernames
 		[ -n "${!USERNAME}" ] || continue
 
 		# If there's no password for the user, we skip it
-		PASSWORD="ARTEMIS_CRED_PASSWORD_${NUM}"
+		PASSWORD="ARTEMIS_PASSWORD_${NUM}"
 		[ -v "${PASSWORD}" ] || continue
 		add_user "${!USERNAME}" "${!PASSWORD}" "${USERS_FILE}"
 
 		# If there are no roles for the user, we skip'em
-		ROLES="ARTEMIS_CRED_ROLES_${NUM}"
+		ROLES="ARTEMIS_ROLES_${NUM}"
 		[ -v "${ROLES}" ] || continue
 		add_roles "${!USERNAME}" "${!ROLES}" "${ROLES_FILE}"
 	done

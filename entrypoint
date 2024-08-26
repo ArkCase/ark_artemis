@@ -1,44 +1,9 @@
 #!/bin/bash
+
 set -euo pipefail
+. /.functions
 
-timestamp()
-{
-	/usr/bin/date -Ins -u
-}
-
-say()
-{
-	echo -e "$(timestamp): ${@}"
-}
-
-ok()
-{
-	say "✅ ${@}"
-}
-
-err()
-{
-	say "❌ ${@}"
-}
-
-fail()
-{
-	err "${@}"
-	exit ${EXIT_CODE:-1}
-}
-
-xml_escape()
-{
-	local V="${1}"
-	V="${V//&/&amp;}"
-	V="${V//</&lt;}"
-	V="${V//>/&gt;}"
-	V="${V//\"/&quot;}"
-	V="${V//\'/&apos;}"
-	echo -n "${V}"
-}
-
-hash_password()
+mask_password()
 {
 	local PASSWORD="${1}"
 	local HASH="$(artemis mask --hash "${PASSWORD}" | awk '{ print $2 }' | tr -d '\n')"
@@ -55,7 +20,7 @@ add_user()
 	local USERNAME="${1}"
 	local PASSWORD="${2}"
 	local FILE="${3}"
-	echo "${USERNAME} = $(hash_password "${PASSWORD}")" >> "${FILE}"
+	echo "${USERNAME} = $(mask_password "${PASSWORD}")" >> "${FILE}"
 }
 
 add_roles()
@@ -84,35 +49,23 @@ add_roles()
 	done
 }
 
-url_escape()
-{
-	local V="${1}"
-	echo -n "${V}" | /usr/bin/jq -sRr @uri
-}
-
 sed_escape()
 {
 	local V="${1}"
-	echo -n "${V}" | /usr/bin/sed -e 's;&;\\&;g'
+	echo -n "${V}" | sed -e 's;&;\\&;g'
 }
 
-[ -v BASE_DIR ] || BASE_DIR="/app"
-[ -v CONF_DIR ] || CONF_DIR="${BASE_DIR}/conf"
-[ -v DATA_DIR ] || DATA_DIR="${BASE_DIR}/data"
-[ -v LOGS_DIR ] || LOGS_DIR="${BASE_DIR}/logs"
+set_or_default BASE_DIR "/app"
+set_or_default CONF_DIR "${BASE_DIR}/conf"
+set_or_default DATA_DIR "${BASE_DIR}/data"
+set_or_default LOGS_DIR "${BASE_DIR}/logs"
 
 # Fork into the application
-[ -v JAVA_MEM_ARGS ] || JAVA_ARGS="-XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0"
+set_or_default JAVA_MEM_ARGS "-XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0"
 export JAVA_MEM_ARGS
 
 # Update the SSL stuff
-[ -v SSL_DIR ] || SSL_DIR="/.ssl"
-
-# This is done because we can't risk having "weird" characters in the password
-# b/c we can't find docs on how to escape said weird characters so they won't
-# trip up netty's URL parsing. Using this model ensures our password will only
-# contain alphanumeric characters (letters in both cases, and numbers)
-acme-init
+init_ssl
 
 MAX_BOOT_DELAY="60"
 if [ -v BOOT_DELAY ] && [[ "${BOOT_DELAY}" =~ ^[0-9]+$ ]] ; then
@@ -129,23 +82,9 @@ if [ -v BOOT_DELAY ] && [[ "${BOOT_DELAY}" =~ ^[0-9]+$ ]] ; then
 	fi
 fi
 
-[ -e "${CONF_DIR}" ] || fail "The data directory [${CONF_DIR}] does not exist"
-[ -d "${CONF_DIR}" ] || fail "The path [${CONF_DIR}] is not a directory"
-[ -r "${CONF_DIR}" ] || fail "The data directory [${CONF_DIR}] is not readable by ${USER} (${UID}:$(id -g))"
-[ -w "${CONF_DIR}" ] || fail "The data directory [${CONF_DIR}] is not writable by ${USER} (${UID}:$(id -g))"
-[ -x "${CONF_DIR}" ] || fail "The data directory [${CONF_DIR}] is not executable by ${USER} (${UID}:$(id -g))"
-
-[ -e "${DATA_DIR}" ] || fail "The data directory [${DATA_DIR}] does not exist"
-[ -d "${DATA_DIR}" ] || fail "The path [${DATA_DIR}] is not a directory"
-[ -r "${DATA_DIR}" ] || fail "The data directory [${DATA_DIR}] is not readable by ${USER} (${UID}:$(id -g))"
-[ -w "${DATA_DIR}" ] || fail "The data directory [${DATA_DIR}] is not writable by ${USER} (${UID}:$(id -g))"
-[ -x "${DATA_DIR}" ] || fail "The data directory [${DATA_DIR}] is not executable by ${USER} (${UID}:$(id -g))"
-
-[ -e "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] does not exist"
-[ -d "${LOGS_DIR}" ] || fail "The path [${LOGS_DIR}] is not a directory"
-[ -r "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] is not readable by ${USER} (${UID}:$(id -g))"
-[ -w "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] is not writable by ${USER} (${UID}:$(id -g))"
-[ -x "${LOGS_DIR}" ] || fail "The data directory [${LOGS_DIR}] is not executable by ${USER} (${UID}:$(id -g))"
+require_dir_readwrite "${CONF_DIR}"
+require_dir_readwrite "${DATA_DIR}"
+require_dir_readwrite "${LOGS_DIR}"
 
 export POD_HOSTNAME="$(hostname)"
 
@@ -168,22 +107,21 @@ KEYSTORE="${SSL_DIR}/keystore.pkcs12"
 KEYSTORE_PASSWORD="$(<"${SSL_DIR}/keystore.pass")" || fail "Failed to read the SSL keystore password"
 
 # No need to XML-escape this value, as xmlstarlet will do it for us (also, don't allow empty values)
-[ -v ARTEMIS_CLUSTER_PASSWORD ] || ARTEMIS_CLUSTER_PASSWORD=""
-[ -n "${ARTEMIS_CLUSTER_PASSWORD}" ] || ARTEMIS_CLUSTER_PASSWORD="PBWaPfidc5Ko8kiof4338RvxZsWwwPOFtDMYF62IXDd5aWGJotw6QH2ARIozKPWE"
+set_or_default ARTEMIS_CLUSTER_PASSWORD "PBWaPfidc5Ko8kiof4338RvxZsWwwPOFtDMYF62IXDd5aWGJotw6QH2ARIozKPWE"
 
 [ -v ZK_HOST ] || ZK_HOST=""
 
 # Set the SSL protection for the UI console
 cat "${CONF_DIR}/bootstrap.xml.template" | \
-	/usr/bin/xmlstarlet ed -P \
+	xmlstarlet ed -P \
 		-N "root=http://activemq.apache.org/schema" \
 		--update "/root:broker/root:web[@path = 'web']/root:binding/@keyStorePath" -v "${KEYSTORE}" \
 		--update "/root:broker/root:web[@path = 'web']/root:binding/@keyStorePassword" -v "${KEYSTORE_PASSWORD}" \
 	> "${CONF_DIR}/bootstrap.xml"
 
 # Substitute the hostname where appropriate
-/usr/bin/cat "${CONF_DIR}/broker.xml.template" | \
-	/usr/bin/xmlstarlet ed -P \
+cat "${CONF_DIR}/broker.xml.template" | \
+	xmlstarlet ed -P \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \
 		--update "/root:configuration/core:core/core:name" -v "${POD_HOSTNAME}" \
@@ -193,10 +131,10 @@ cat "${CONF_DIR}/bootstrap.xml.template" | \
 		--delete "/root:configuration/core:core/core:cluster-connections/core:cluster-connection/core:static-connectors/core:connector-ref[text() = 'node-${NODE_ID}']" | \
 	# For these replacements, the values must first be URL-escaped, then XML-escaped, and finally
 	# the & symbol must be escaped so sed doesn't replace it with the matching pattern
-	/usr/bin/sed \
-		-e "s'\${POD_HOSTNAME}'$(sed_escape "$(xml_escape "$(url_escape "${POD_HOSTNAME}")")")'g" \
-		-e "s'\${KEYSTORE}'$(sed_escape "$(xml_escape "$(url_escape "${KEYSTORE}")")")'g" \
-		-e "s'\${KEYSTORE_PASSWORD}'$(sed_escape "$(xml_escape "$(url_escape "${KEYSTORE_PASSWORD}")")")'g" \
+	sed \
+		-e "s'\${POD_HOSTNAME}'$(sed_escape "$(xml_escape "${POD_HOSTNAME}")")'g" \
+		-e "s'\${KEYSTORE}'$(sed_escape "$(xml_escape "$(urlencode_query "${KEYSTORE}")")")'g" \
+		-e "s'\${KEYSTORE_PASSWORD}'$(sed_escape "$(xml_escape "$(urlencode_query "${KEYSTORE_PASSWORD}")")")'g" \
 	> "${CONF_DIR}/broker.xml"
 
 #
@@ -204,14 +142,11 @@ cat "${CONF_DIR}/bootstrap.xml.template" | \
 #
 if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 
-	[ -v ARTEMIS_ADMIN_USERNAME ] || ARTEMIS_ADMIN_USERNAME=""
-	[ -n "${ARTEMIS_ADMIN_USERNAME}" ] || ARTEMIS_ADMIN_USERNAME="admin"
-
-	[ -v ARTEMIS_ADMIN_PASSWORD ] || ARTEMIS_ADMIN_PASSWORD=""
+	set_or_default ARTEMIS_ADMIN_USERNAME "admin"
+	set_or_default ARTEMIS_ADMIN_PASSWORD ""
 	[ -n "${ARTEMIS_ADMIN_PASSWORD}" ] || fail "Cannot have an empty administrator password"
 
-	[ -v ARTEMIS_ADMIN_ROLES ] || ARTEMIS_ADMIN_ROLES=""
-	[ -n "${ARTEMIS_ADMIN_ROLES}" ] || ARTEMIS_ADMIN_ROLES="administrator"
+	set_or_default ARTEMIS_ADMIN_ROLES "administrator"
 
 	#
 	# Render the user/roles files ...
@@ -257,12 +192,11 @@ if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 	ok "Authentication configured"
 fi
 
-[ -v JAVA_TOOL_OPTIONS ] || JAVA_TOOL_OPTIONS=""
+set_or_default JAVA_TOOL_OPTIONS ""
 
 # Require SSL for Zookeeper
 JAVA_TOOL_OPTIONS+=" -Dzookeeper.client.secure=true"
 
 CMD="${HOME_DIR}/bin/broker"
 [ ${#} -lt 1 ] && set -- "run"
-say "Launching: "${CMD@Q}" "${@@Q}""
-exec "${CMD}" "${@}"
+execute "${CMD}" "${@}"

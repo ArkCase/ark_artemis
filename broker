@@ -1,4 +1,4 @@
-#!/usr/bin/env /bin/bash
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,24 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
+set -euo pipefail
+. /.functions
+
 #
 # Define base variables, according to all other containers/charts
 #
-[ -v BASE_DIR ] || BASE_DIR="/app"
-[ -v HOME_DIR ] || HOME_DIR="${BASE_DIR}/artemis"
-[ -v CONF_DIR ] || CONF_DIR="${BASE_DIR}/conf"
-[ -v DATA_DIR ] || DATA_DIR="${BASE_DIR}/data"
-[ -v LOGS_DIR ] || LOGS_DIR="${BASE_DIR}/logs"
+set_or_default BASE_DIR "/app"
+set_or_default HOME_DIR "${BASE_DIR}/artemis"
+set_or_default CONF_DIR "${BASE_DIR}/conf"
+set_or_default DATA_DIR "${BASE_DIR}/data"
+set_or_default LOGS_DIR "${BASE_DIR}/logs"
 
 #
 # Define Artemis variables based on base variables
 #
-[ -v ARTEMIS_HOME ] || ARTEMIS_HOME="${HOME_DIR}"
-[ -v ARTEMIS_INSTANCE ] || ARTEMIS_INSTANCE="${CONF_DIR}"
-[ -v ARTEMIS_INSTANCE_ETC ] || ARTEMIS_INSTANCE_ETC="${ARTEMIS_INSTANCE}"
-[ -v ARTEMIS_DATA_DIR ] || ARTEMIS_DATA_DIR="${DATA_DIR}"
-[ -v ARTEMIS_LOGS ] || ARTEMIS_LOGS="${LOGS_DIR}"
-[ -v ARTEMIS_OOME_DUMP ] || ARTEMIS_OOME_DUMP="${ARTEMIS_LOGS}/oom_dump.hprof"
+set_or_default ARTEMIS_HOME "${HOME_DIR}"
+set_or_default ARTEMIS_INSTANCE "${CONF_DIR}"
+set_or_default ARTEMIS_INSTANCE_ETC "${ARTEMIS_INSTANCE}"
+set_or_default ARTEMIS_SIDATA_DIR "${DATA_DIR}"
+set_or_default ARTEMIS_LOGS "${LOGS_DIR}"
+set_or_default ARTEMIS_OOME_DUMP "${ARTEMIS_LOGS}/oom_dump.hprof"
 
 # Cluster Properties: Used to pass arguments to ActiveMQ Artemis which can be referenced in broker.xml
 #ARTEMIS_CLUSTER_PROPS="-Dactivemq.remoting.default.port=61617 -Dactivemq.remoting.amqp.port=5673 -Dactivemq.remoting.stomp.port=61614 -Dactivemq.remoting.hornetq.port=5446"
@@ -41,13 +44,13 @@
 # Hawtio Properties
 # HAWTIO_ROLE define the user role or roles required to be able to login to the console. Multiple roles to allow can
 # be separated by a comma. Set to '*' or an empty value to disable role checking when Hawtio authenticates a user.
-[ -v HAWTIO_ROLE ] || HAWTIO_ROLE="administrator"
+set_or_default HAWTIO_ROLE "administrator"
 
 # Java Memory Options
-[ -v JAVA_MEM_ARGS ] || JAVA_MEM_ARGS=(-Xms512M -Xmx2G)
+set_or_default JAVA_MEM_ARGS "-Xms512M -Xmx2G"
 
 # Convert to an array, respecting quotes
-[[ "$(declare -p JAVA_MEM_ARGS)" =~ "declare -a" ]] || IFS=$'\n' JAVA_MEM_ARGS=( $(/usr/bin/xargs -n1 <<< "${JAVA_MEM_ARGS}") )
+to_array JAVA_MEM_ARGS
 
 # Java Options
 if [ ! -v JAVA_ARGS ] ; then
@@ -66,13 +69,10 @@ if [ ! -v JAVA_ARGS ] ; then
 fi
 
 # Convert to an array, respecting quotes
-[[ "$(declare -p JAVA_ARGS)" =~ "declare -a" ]] || IFS=$'\n' JAVA_ARGS=( $(/usr/bin/xargs -n1 <<< "${JAVA_ARGS}") )
+to_array JAVA_ARGS
 
 # Extra JVM args
-[ -v JAVA_ARGS_APPEND ] || JAVA_ARGS_APPEND=()
-
-# Convert to an array, respecting quotes
-[[ "$(declare -p JAVA_ARGS_APPEND)" =~ "declare -a" ]] || IFS=$'\n' JAVA_ARGS_APPEND=( $(/usr/bin/xargs -n1 <<< "${JAVA_ARGS_APPEND}") )
+to_array JAVA_ARGS_APPEND
 
 # Uncomment to enable logging for Safepoint JVM pauses
 #
@@ -81,42 +81,21 @@ fi
 # the classic GC logs and dependent by JVM background work (eg method deoptimizations, lock unbiasing, JNI, counted
 # loops and obviously GC activity).
 #
-[ -v ARTEMIS_GC_LOG ] && [ "${ARTEMIS_GC_LOG,,}" == "true" ] && JAVA_ARGS+=( -verbose:gc -Xlog:gc+heap=trace -Xlog:gc* -Xlog:age*=debug -Xlog:safepoint -Xlog:gc:"${ARTEMIS_LOGS}/artemis-gc.log:uptimemillis:filecount=9,filesize=20M" )
+as_boolean "${ARTEMIS_GC_LOG:-}" && JAVA_ARGS+=( -verbose:gc -Xlog:gc+heap=trace -Xlog:gc* -Xlog:age*=debug -Xlog:safepoint -Xlog:gc:"${ARTEMIS_LOGS}/artemis-gc.log:uptimemillis:filecount=9,filesize=20M" )
 
 # Uncomment to enable the dumping of the Java heap when a java.lang.OutOfMemoryError exception is thrown
-[ -v ARTEMIS_GC_DUMP ] && [ "${ARTEMIS_GC_DUMP,,}" == "true" ] && JAVA_ARGS+=( "${JAVA_MEM_ARGS[@]}" "${JAVA_ARGS[@]}" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath="${ARTEMIS_OOME_DUMP}" )
+as_boolean "${ARTEMIS_GC_DUMP:-}" && JAVA_ARGS+=( "${JAVA_MEM_ARGS[@]}" "${JAVA_ARGS[@]}" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath="${ARTEMIS_OOME_DUMP}" )
 
 # Only enable debug options for the 'run' command
 if [ ${#} -ge 1 ] && [ "${1}" == "run" ] ; then
     # Uncomment to enable remote debugging
-    [ -v ARTEMIS_DEBUG ] && [ "${ARTEMIS_DEBUG,,}" == "true" ] && JAVA_ARGS+=(-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005)
+	as_boolean "${ARTEMIS_DEBUG:-}" && JAVA_ARGS+=(-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005)
 
     # Uncomment for async profiler
-    [ -v ARTEMIS_PROFILER ] && [ "${ARTEMIS_PROFILER,,}" == "true" ] && JAVA_ARGS+=(-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints)
+    as_boolean "${ARTEMIS_PROFILER:-}" && JAVA_ARGS+=(-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints)
 fi
 
 CLASSPATH="${ARTEMIS_HOME}/lib/artemis-boot.jar"
-
-# OS specific support.
-cygwin="false"
-darwin="false"
-case "$(uname)" in
-	CYGWIN*)
-		cygwin="true"
-		OSTYPE="cygwin"
-		export OSTYPE
-		;;
-	Darwin*)
-		darwin="true"
-		[ -z "${JAVA_HOME}" ] && JAVA_HOME=$(/usr/libexec/java_home)
-		;;
-esac
-
-# For Cygwin, ensure paths are in UNIX format before anything is touched
-if ${cygwin} ; then
-	[ -n "${ARTEMIS_INSTANCE}" ] && ARTEMIS_INSTANCE="$(cygpath --unix "${ARTEMIS_INSTANCE}")"
-	[ -n "${JAVA_HOME}" ] && JAVA_HOME="$(cygpath --unix "${JAVA_HOME}")"
-fi
 
 if [ -z "${JAVACMD}" ] ; then
 	if [ -n "${JAVA_HOME}"	] ; then
@@ -131,18 +110,12 @@ if [ -z "${JAVACMD}" ] ; then
 	fi
 fi
 
-if ${cygwin} ; then
-	JAVA_HOME="$(cygpath --windows "${JAVA_HOME}")"
-	ARTEMIS_HOME="$(cygpath --windows "${ARTEMIS_HOME}")"
-	CLASSPATH="$(cygpath --windows "${CLASSPATH}")"
-fi
-
 if [ -f "${ARTEMIS_OOME_DUMP}" ] ; then
 	# backup the last OOME heap dump
-	/usr/bin/mv "${ARTEMIS_OOME_DUMP}" "${ARTEMIS_OOME_DUMP}.bkp.$(/usr/bin/date -Isec -u)"
+	mv "${ARTEMIS_OOME_DUMP}" "${ARTEMIS_OOME_DUMP}.bkp.$(date -Isec -u)"
 fi
 
-ARCH="$(/usr/bin/uname -m)"
+ARCH="$(uname -m)"
 
 CMD=(
 	"${JAVACMD}" \
@@ -162,4 +135,5 @@ CMD=(
 		"${JAVA_ARGS_APPEND[@]}" \
 		org.apache.activemq.artemis.boot.Artemis "${@}"
 )
-exec "${CMD[@]}"
+
+execute "${CMD[@]}"

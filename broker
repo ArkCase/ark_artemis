@@ -129,4 +129,8 @@ CMD=(
 		org.apache.activemq.artemis.boot.Artemis "${@}"
 )
 
-execute "${CMD[@]}"
+# Use "exec" by default, but allow the use of "execute"
+# if debugging...
+EXEC="exec"
+as_boolean "${DEBUG_BROKER:-""}" && EXEC="execute"
+"${EXEC}" "${CMD[@]}"

@@ -88,7 +88,7 @@ to_array JAVA_ARGS_APPEND
 as_boolean "${ARTEMIS_GC_LOG:-}" && JAVA_ARGS+=( -verbose:gc -Xlog:gc+heap=trace -Xlog:gc* -Xlog:age*=debug -Xlog:safepoint -Xlog:gc:"${ARTEMIS_LOGS}/artemis-gc.log:uptimemillis:filecount=9,filesize=20M" )
 
 # Uncomment to enable the dumping of the Java heap when a java.lang.OutOfMemoryError exception is thrown
-as_boolean "${ARTEMIS_GC_DUMP:-}" && JAVA_ARGS+=( "${JAVA_MEM_ARGS[@]}" "${JAVA_ARGS[@]}" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath="${ARTEMIS_OOME_DUMP}" )
+as_boolean "${ARTEMIS_GC_DUMP:-}" && JAVA_ARGS+=( "${JAVA_ARGS[@]}" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath="${ARTEMIS_OOME_DUMP}" )
 
 # Only enable debug options for the 'run' command
 if [ ${#} -ge 1 ] && [ "${1}" == "run" ] ; then
@@ -108,22 +108,24 @@ fi
 
 ARCH="$(uname -m)"
 
+# Add the extra JVM args
+JAVA_ARGS+=( "${JAVA_MEM_ARGS[@]}" "${JAVA_ARGS_APPEND[@]}")
+
 CMD=(
-	java \
-		"${JAVA_ARGS[@]}" \
-		-Dhawtio.role="${HAWTIO_ROLE}" \
-		-Djava.security.auth.login.config="${ARTEMIS_INSTANCE_ETC}/login.config" \
-		${ARTEMIS_CLUSTER_PROPS} \
-		-classpath "${CLASSPATH}" \
-		-Dartemis.home="${ARTEMIS_HOME}" \
-		-Dartemis.instance="${ARTEMIS_INSTANCE}" \
-		-Dartemis.logs="${ARTEMIS_LOGS}" \
-		-Djava.library.path="${ARTEMIS_HOME}/bin/lib/linux-${ARCH}" \
-		-Djava.io.tmpdir="${ARTEMIS_DATA}/tmp" \
-		-Ddata.dir="${ARTEMIS_DATA_DIR}" \
-		-Dartemis.instance.etc="${ARTEMIS_INSTANCE_ETC}" \
-		"${DEBUG_ARGS[@]}" \
-		"${JAVA_ARGS_APPEND[@]}" \
+	java
+		"${JAVA_ARGS[@]}"
+		-Dhawtio.role="${HAWTIO_ROLE}"
+		-Djava.security.auth.login.config="${ARTEMIS_INSTANCE_ETC}/login.config"
+		${ARTEMIS_CLUSTER_PROPS}
+		-classpath "${CLASSPATH}"
+		-Dartemis.home="${ARTEMIS_HOME}"
+		-Dartemis.instance="${ARTEMIS_INSTANCE}"
+		-Dartemis.logs="${ARTEMIS_LOGS}"
+		-Djava.library.path="${ARTEMIS_HOME}/bin/lib/linux-${ARCH}"
+		-Djava.io.tmpdir="${ARTEMIS_DATA}/tmp"
+		-Ddata.dir="${ARTEMIS_DATA_DIR}"
+		-Dartemis.instance.etc="${ARTEMIS_INSTANCE_ETC}"
+		"${DEBUG_ARGS[@]}"
 		org.apache.activemq.artemis.boot.Artemis "${@}"
 )
 

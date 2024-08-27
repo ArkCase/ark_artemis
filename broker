@@ -38,8 +38,12 @@ set_or_default ARTEMIS_SIDATA_DIR "${DATA_DIR}"
 set_or_default ARTEMIS_LOGS "${LOGS_DIR}"
 set_or_default ARTEMIS_OOME_DUMP "${ARTEMIS_LOGS}/oom_dump.hprof"
 
+set_or_default ARTEMIS_CLUSTER_PROPS
 # Cluster Properties: Used to pass arguments to ActiveMQ Artemis which can be referenced in broker.xml
 #ARTEMIS_CLUSTER_PROPS="-Dactivemq.remoting.default.port=61617 -Dactivemq.remoting.amqp.port=5673 -Dactivemq.remoting.stomp.port=61614 -Dactivemq.remoting.hornetq.port=5446"
+
+set_or_default DEBUG_ARGS
+to_array DEBUG_ARGS
 
 # Hawtio Properties
 # HAWTIO_ROLE define the user role or roles required to be able to login to the console. Multiple roles to allow can

@@ -109,7 +109,7 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 # Update local packages and install required packages
 #
 RUN yum -y install \
-        java-11-openjdk-devel \
+        java-17-openjdk-devel \
         libaio \
         sudo \
         xmlstarlet \

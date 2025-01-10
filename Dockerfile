@@ -29,7 +29,7 @@
 ARG PUBLIC_REGISTRY="public.ecr.aws"
 ARG ARCH="amd64"
 ARG OS="linux"
-ARG VER="2.35.0"
+ARG VER="2.39.0"
 ARG PKG="artemis"
 ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JMX_VER="1.0.1"
@@ -59,6 +59,7 @@ ARG LOGS_DIR="${BASE_DIR}/logs"
 ARG TEMP_DIR="${BASE_DIR}/temp"
 ARG SRC
 ARG JMX_SRC
+ARG JMX_VER
 
 #
 # Basic Parameters

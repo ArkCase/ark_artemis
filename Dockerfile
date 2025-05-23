@@ -34,10 +34,10 @@ ARG PKG="artemis"
 ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JMX_VER="1.0.1"
 ARG JMX_SRC="https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${JMX_VER}/jmx_prometheus_javaagent-${JMX_VER}.jar"
-ARG JAVA_VER="17"
+ARG JAVA="17"
 
 ARG BASE_REGISTRY="${PUBLIC_REGISTRY}"
-ARG BASE_REPO="arkcase/base"
+ARG BASE_REPO="arkcase/base-java"
 ARG BASE_VER="8"
 ARG BASE_VER_PFX=""
 ARG BASE_IMG="${BASE_REGISTRY}/${BASE_REPO}:${BASE_VER_PFX}${BASE_VER}"
@@ -61,7 +61,7 @@ ARG TEMP_DIR="${BASE_DIR}/temp"
 ARG SRC
 ARG JMX_SRC
 ARG JMX_VER
-ARG JAVA_VER
+ARG JAVA
 
 #
 # Basic Parameters
@@ -95,7 +95,6 @@ ENV APP_USER="${APP_USER}"
 ENV APP_GROUP="${APP_GROUP}"
 
 # Environment variables: Java stuff
-ENV JAVA_HOME="/usr/lib/jvm/jre-${JAVA_VER}-openjdk"
 ENV USER="${APP_USER}"
 
 WORKDIR "${BASE_DIR}"
@@ -110,8 +109,8 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 #
 # Update local packages and install required packages
 #
-RUN yum -y install \
-        java-${JAVA_VER}-openjdk-devel \
+RUN set-java "${JAVA}" && \
+    yum -y install \
         libaio \
         sudo \
         xmlstarlet \

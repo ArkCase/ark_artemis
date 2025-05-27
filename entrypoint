@@ -137,6 +137,9 @@ cat "${CONF_DIR}/broker.xml.template" | \
 		-e "s'\${KEYSTORE_PASSWORD}'$(sed_escape "$(xml_escape "$(urlencode_query "${KEYSTORE_PASSWORD}")")")'g" \
 	> "${CONF_DIR}/broker.xml"
 
+# This is required at runtime
+export CLUSTER_DOMAIN="$(get_cluster_domain)"
+
 #
 # Enable the new, environment-based authentication scheme
 #

@@ -67,6 +67,9 @@ export JAVA_MEM_ARGS
 # Update the SSL stuff
 init_ssl
 
+# Set the JVM version
+set-java
+
 MAX_BOOT_DELAY="60"
 if [ -v BOOT_DELAY ] && [[ "${BOOT_DELAY}" =~ ^[0-9]+$ ]] ; then
 	BOOT_DELAY="$(( 10#${BOOT_DELAY} ))"

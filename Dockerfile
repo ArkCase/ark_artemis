@@ -33,7 +33,9 @@ ARG VER="2.35.0"
 ARG PKG="artemis"
 ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JMX_VER="1.0.1"
-ARG JMX_SRC="https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${JMX_VER}/jmx_prometheus_javaagent-${JMX_VER}.jar"
+ARG JMX_SRC="io.prometheus.jmx:jmx_prometheus_javaagent:${JMX_VER}"
+ARG JGROUPS_K8S_VER="2.0.2.Final"
+ARG JGROUPS_K8S_SRC="org.jgroups.kubernetes:jgroups-kubernetes:${JGROUPS_K8S_VER}"
 ARG JAVA="17"
 
 ARG BASE_REGISTRY="${PUBLIC_REGISTRY}"
@@ -60,7 +62,7 @@ ARG LOGS_DIR="${BASE_DIR}/logs"
 ARG TEMP_DIR="${BASE_DIR}/temp"
 ARG SRC
 ARG JMX_SRC
-ARG JMX_VER
+ARG JGROUPS_K8S_SRC
 ARG JAVA
 
 #
@@ -72,8 +74,6 @@ LABEL MAINTAINER="Armedia Devops Team <devops@armedia.com>"
 LABEL APP="Artemis"
 LABEL VERSION="${VER}"
 
-# Environment variables: tarball stuff
-ENV JMX_PROMETHEUS_AGENT_JAR="jmx_prometheus_javaagent-${JMX_VER}.jar"
 # Environment variables: ActiveMQ directories
 ENV BASE_DIR="${BASE_DIR}"
 ENV HOME_DIR="${HOME_DIR}"
@@ -86,6 +86,7 @@ ENV ARTEMIS_HOME="${HOME_DIR}"
 ENV ARTEMIS_BASE="${HOME_DIR}"
 ENV ARTEMIS_CONF="${CONF_DIR}"
 ENV ARTEMIS_DATA="${DATA_DIR}"
+ENV ARTEMIS_LIB="${ARTEMIS_HOME}/lib"
 ENV ARTEMIS_TMP="${TEMP_DIR}"
 
 # Environment variables: system stuff
@@ -120,7 +121,8 @@ RUN set-java "${JAVA}" && \
     mkdir -p "${HOME_DIR}" "${CONF_DIR}" "${DATA_DIR}" "${LOGS_DIR}" "${TEMP_DIR}" && \
     tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis.tar.gz" && \
     rm -rf "${HOME_DIR}/examples" "/artemis.tar.gz" && \
-    curl -L -o "${JMX_AGENT_JAR}" "${JMX_SRC}"
+    mvn-get "${JMX_SRC}" "${JMX_AGENT_JAR}" && \
+    mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}"
 
 #
 # Install the remaining files

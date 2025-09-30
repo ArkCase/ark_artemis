@@ -128,7 +128,7 @@ RUN set-java "${JAVA}" && \
 # Install the remaining files
 #
 COPY jmx-prometheus-agent.yaml "${JMX_AGENT_CONF}"
-COPY --chown=root:root entrypoint /
+COPY --chown=root:root --chmod=0755 entrypoint /
 
 #
 # Create the required user/group
@@ -140,8 +140,7 @@ COPY broker "${HOME_DIR}/bin/broker"
 
 RUN rm -rf /tmp/* && \
     chown -R "${APP_USER}:${APP_GROUP}" "${BASE_DIR}" && \
-    chmod -R "u=rwX,g=rX,o=" "${BASE_DIR}" && \
-    chmod 0755 /entrypoint
+    chmod -R "u=rwX,g=rX,o=" "${BASE_DIR}"
 
 #
 # Launch as the application's user

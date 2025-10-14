@@ -31,6 +31,7 @@ ARG ARCH="amd64"
 ARG OS="linux"
 ARG VER="2.42.0"
 ARG PKG="artemis"
+ARG KEYS="https://downloads.apache.org/activemq/KEYS"
 ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JMX_VER="1.0.1"
 ARG JMX_SRC="io.prometheus.jmx:jmx_prometheus_javaagent:${JMX_VER}"
@@ -40,7 +41,7 @@ ARG JAVA="17"
 
 ARG BASE_REGISTRY="${PUBLIC_REGISTRY}"
 ARG BASE_REPO="arkcase/base-java"
-ARG BASE_VER="8"
+ARG BASE_VER="22.04"
 ARG BASE_VER_PFX=""
 ARG BASE_IMG="${BASE_REGISTRY}/${BASE_REPO}:${BASE_VER_PFX}${BASE_VER}"
 
@@ -60,6 +61,7 @@ ARG CONF_DIR="${BASE_DIR}/conf"
 ARG DATA_DIR="${BASE_DIR}/data"
 ARG LOGS_DIR="${BASE_DIR}/logs"
 ARG TEMP_DIR="${BASE_DIR}/temp"
+ARG KEYS
 ARG SRC
 ARG JMX_SRC
 ARG JGROUPS_K8S_SRC
@@ -111,14 +113,12 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 # Update local packages and install required packages
 #
 RUN set-java "${JAVA}" && \
-    yum -y install \
-        libaio \
-        sudo \
-        xmlstarlet \
-    && \
-    yum -y clean all && \
-    curl -L -o "/artemis.tar.gz" "${SRC}" && \
+    apt-get -y install \
+        libaio1 \
+      && \
+    apt-get clean && \
     mkdir -p "${HOME_DIR}" "${CONF_DIR}" "${DATA_DIR}" "${LOGS_DIR}" "${TEMP_DIR}" && \
+    apache-download "${SRC}" "${KEYS}" "/artemis.tar.gz" && \
     tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis.tar.gz" && \
     rm -rf "${HOME_DIR}/examples" "/artemis.tar.gz" && \
     mvn-get "${JMX_SRC}" "${JMX_AGENT_JAR}" && \

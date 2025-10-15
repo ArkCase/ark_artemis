@@ -33,8 +33,6 @@ ARG VER="2.42.0"
 ARG PKG="artemis"
 ARG KEYS="https://downloads.apache.org/activemq/KEYS"
 ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
-ARG JMX_VER="1.0.1"
-ARG JMX_SRC="io.prometheus.jmx:jmx_prometheus_javaagent:${JMX_VER}"
 ARG JGROUPS_K8S_VER="2.0.2.Final"
 ARG JGROUPS_K8S_SRC="org.jgroups.kubernetes:jgroups-kubernetes:${JGROUPS_K8S_VER}"
 ARG JAVA="17"
@@ -55,15 +53,8 @@ ARG APP_UID="1998"
 ARG APP_GID="${APP_UID}"
 ARG APP_USER="${PKG}"
 ARG APP_GROUP="${APP_USER}"
-ARG BASE_DIR="/app"
-ARG HOME_DIR="${BASE_DIR}/${PKG}"
-ARG CONF_DIR="${BASE_DIR}/conf"
-ARG DATA_DIR="${BASE_DIR}/data"
-ARG LOGS_DIR="${BASE_DIR}/logs"
-ARG TEMP_DIR="${BASE_DIR}/temp"
 ARG KEYS
 ARG SRC
-ARG JMX_SRC
 ARG JGROUPS_K8S_SRC
 ARG JAVA
 
@@ -77,12 +68,7 @@ LABEL APP="Artemis"
 LABEL VERSION="${VER}"
 
 # Environment variables: ActiveMQ directories
-ENV BASE_DIR="${BASE_DIR}"
-ENV HOME_DIR="${HOME_DIR}"
-ENV CONF_DIR="${CONF_DIR}"
-ENV DATA_DIR="${DATA_DIR}"
-ENV LOGS_DIR="${LOGS_DIR}"
-ENV TEMP_DIR="${TEMP_DIR}"
+ARG HOME_DIR="${BASE_DIR}/${PKG}"
 
 ENV ARTEMIS_HOME="${HOME_DIR}"
 ENV ARTEMIS_BASE="${HOME_DIR}"
@@ -102,11 +88,6 @@ ENV USER="${APP_USER}"
 
 WORKDIR "${BASE_DIR}"
 
-ENV JMX_AGENT_JAR="${HOME_DIR}/jmx-prometheus-agent.jar"
-ENV JMX_AGENT_CONF="${CONF_DIR}/jmx-prometheus-agent.yaml"
-
-# Activate the Prometheus JMX exporter
-ENV ARTEMIS_SUNJMX_START="-javaagent:${JMX_AGENT_JAR}=9100:${JMX_AGENT_CONF}"
 ENV PATH="${HOME_DIR}/bin:${PATH}"
 
 #
@@ -118,16 +99,14 @@ RUN set-java "${JAVA}" && \
       && \
     apt-get clean && \
     mkdir -p "${HOME_DIR}" "${CONF_DIR}" "${DATA_DIR}" "${LOGS_DIR}" "${TEMP_DIR}" && \
-    apache-download "${SRC}" "${KEYS}" "/artemis.tar.gz" && \
+    verified-download --keys "${KEYS}" "${SRC}" "/artemis.tar.gz" && \
     tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis.tar.gz" && \
     rm -rf "${HOME_DIR}/examples" "/artemis.tar.gz" && \
-    mvn-get "${JMX_SRC}" "${JMX_AGENT_JAR}" && \
     mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}"
 
 #
 # Install the remaining files
 #
-COPY jmx-prometheus-agent.yaml "${JMX_AGENT_CONF}"
 COPY --chown=root:root --chmod=0755 entrypoint /
 
 #
@@ -138,26 +117,20 @@ RUN groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
 
 COPY broker "${HOME_DIR}/bin/broker"
 
+COPY --chown=root:root --chmod=0755 CVE /CVE
+RUN apply-fixes /CVE
+
 RUN rm -rf /tmp/* && \
     chown -R "${APP_USER}:${APP_GROUP}" "${BASE_DIR}" && \
     chmod -R "u=rwX,g=rX,o=" "${BASE_DIR}"
-
-COPY --chown=root:root --chmod=0755 CVE /CVE
-RUN apply-fixes /CVE
 
 #
 # Launch as the application's user
 #
 USER "${APP_USER}"
-WORKDIR "${HOME_DIR}"
 
 EXPOSE 8443
 EXPOSE 61613
 EXPOSE 61616
-
-VOLUME [ "${DATA_DIR}" ]
-VOLUME [ "${CONF_DIR}" ]
-VOLUME [ "${LOGS_DIR}" ]
-VOLUME [ "${TEMP_DIR}" ]
 
 ENTRYPOINT [ "/entrypoint" ]

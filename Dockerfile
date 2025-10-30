@@ -106,13 +106,10 @@ RUN set-java "${JAVA}" && \
     mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}"
 
 #
-# Add our custom artemis CLI script
-#
-COPY --chown=root:root --chmod=0755 artemis "${ARTEMIS_HOME}/bin/"
-
-#
 # Install the remaining files
 #
+COPY --chown=root:root --chmod=0755 artemis broker "${ARTEMIS_HOME}/bin/"
+COPY --chown=root:root --chmod=0644 jmx-prometheus-agent.yaml "${JMX_AGENT_CONF}"
 COPY --chown=root:root --chmod=0755 entrypoint /
 
 #

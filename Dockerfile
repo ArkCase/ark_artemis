@@ -126,14 +126,10 @@ RUN set-java "${JAVA}" && \
     mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}"
 
 #
-# Add our custom artemis CLI script
-#
-COPY --chown=root:root --chmod=0755 artemis "${ARTEMIS_HOME}/bin/"
-
-#
 # Install the remaining files
 #
-COPY jmx-prometheus-agent.yaml "${JMX_AGENT_CONF}"
+COPY --chown=root:root --chmod=0755 artemis broker "${ARTEMIS_HOME}/bin/"
+COPY --chown=root:root --chmod=0644 jmx-prometheus-agent.yaml "${JMX_AGENT_CONF}"
 COPY --chown=root:root --chmod=0755 entrypoint /
 
 #
@@ -141,8 +137,6 @@ COPY --chown=root:root --chmod=0755 entrypoint /
 #
 RUN groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
     useradd  --uid "${APP_UID}" --gid "${APP_GROUP}" --groups "${ACM_GROUP}" --create-home --home-dir "${HOME_DIR}" "${APP_USER}"
-
-COPY broker "${HOME_DIR}/bin/broker"
 
 RUN rm -rf /tmp/* && \
     chown -R "${APP_USER}:${APP_GROUP}" "${BASE_DIR}" && \

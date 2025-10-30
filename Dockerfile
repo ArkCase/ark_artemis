@@ -109,7 +109,6 @@ RUN set-java "${JAVA}" && \
 # Install the remaining files
 #
 COPY --chown=root:root --chmod=0755 artemis broker "${ARTEMIS_HOME}/bin/"
-COPY --chown=root:root --chmod=0644 jmx-prometheus-agent.yaml "${JMX_AGENT_CONF}"
 COPY --chown=root:root --chmod=0755 entrypoint /
 
 #
@@ -117,8 +116,6 @@ COPY --chown=root:root --chmod=0755 entrypoint /
 #
 RUN groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
     useradd  --uid "${APP_UID}" --gid "${APP_GROUP}" --groups "${ACM_GROUP}" --create-home --home-dir "${HOME_DIR}" "${APP_USER}"
-
-COPY broker "${HOME_DIR}/bin/broker"
 
 COPY --chown=root:root --chmod=0755 CVE /CVE
 RUN apply-fixes /CVE

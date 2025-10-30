@@ -86,8 +86,9 @@ ENV ARTEMIS_HOME="${HOME_DIR}"
 ENV ARTEMIS_BASE="${HOME_DIR}"
 ENV ARTEMIS_CONF="${CONF_DIR}"
 ENV ARTEMIS_DATA="${DATA_DIR}"
+ENV ARTEMIS_LOGS="${LOGS_DIR}"
+ENV ARTEMIS_TEMP="${TEMP_DIR}"
 ENV ARTEMIS_LIB="${ARTEMIS_HOME}/lib"
-ENV ARTEMIS_TMP="${TEMP_DIR}"
 
 # Environment variables: system stuff
 ENV APP_UID="${APP_UID}"
@@ -123,6 +124,11 @@ RUN set-java "${JAVA}" && \
     rm -rf "${HOME_DIR}/examples" "/artemis.tar.gz" && \
     mvn-get "${JMX_SRC}" "${JMX_AGENT_JAR}" && \
     mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}"
+
+#
+# Add our custom artemis CLI script
+#
+COPY --chown=root:root --chmod=0755 artemis "${ARTEMIS_HOME}/bin/"
 
 #
 # Install the remaining files

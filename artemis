@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+. /.functions
+set -euo pipefail
+
+require_exe java
+
+set_or_default BASE_DIR "/app"
+set_or_default ARTEMIS_HOME "${BASE_DIR}/artemis"
+set_or_default ARTEMIS_INSTANCE "${CONF_DIR}"
+set_or_default ARTEMIS_LOGS "${LOGS_DIR}"
+set_or_default ARTEMIS_TEMP "${TEMP_DIR}"
+
+ARTEMIS_HOME="$(readlink -f "${ARTEMIS_HOME}")"
+require_dir_readable "${ARTEMIS_HOME}"
+
+ARTEMIS_INSTANCE="$(readlink -f "${ARTEMIS_INSTANCE}")"
+require_dir_readable "${ARTEMIS_INSTANCE}"
+
+set_or_default JAVA_ARGS "-Xms512M -Xmx1024M"
+
+CLASSPATH="${ARTEMIS_HOME}/lib/artemis-boot.jar"
+
+PREPEND_ARGS=()
+if [ -v JAVA_ARGS ] ; then
+	to_array JAVA_ARGS
+	PREPEND_ARGS+=( "${JAVA_ARGS[@]}" )
+fi
+if [ -v ARTEMIS_CLUSTER_PROPS ] ; then
+	to_array ARTEMIS_CLUSTER_PROPS
+	PREPEND_ARGS+=( "${ARTEMIS_CLUSTER_PROPS[@]}" )
+fi
+
+APPEND_ARGS=()
+if [ -v DEBUG_ARGS ] ; then
+	to_array DEBUG_ARGS
+	APPEND_ARGS+=( "${DEBUG_ARGS[@]}" )
+fi
+if [ -v JAVA_ARGS_APPEND ] ; then
+	to_array JAVA_ARGS_APPEND
+	APPEND_ARGS+=( "${JAVA_ARGS_APPEND[@]}" )
+fi
+
+CMD=(
+	java
+		"${PREPEND_ARGS[@]}"
+		-classpath "${CLASSPATH}"
+		-Dartemis.home="${ARTEMIS_HOME}"
+		-Dartemis.instance="${ARTEMIS_INSTANCE}"
+		-Dartemis.instance.etc="${ARTEMIS_INSTANCE}"
+		-Djava.library.path="${ARTEMIS_HOME}/bin/lib/linux-$(uname -m)"
+		"${APPEND_ARGS[@]}"
+		org.apache.activemq.artemis.boot.Artemis "${@}"
+)
+exec "${CMD[@]}"

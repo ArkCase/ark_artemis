@@ -122,13 +122,25 @@ cat "${CONF_DIR}/bootstrap.xml.template" | \
 		--update "/root:broker/root:web[@path = 'web']/root:binding/@keyStorePassword" -v "${KEYSTORE_PASSWORD}" \
 	> "${CONF_DIR}/bootstrap.xml"
 
+# Detect whether we're in primary mode or backup mode...by default
+# we assume we're primary and must delete the backup configuration
+[[ "${POD_HOSTNAME,,}" =~ ^[^.]+-(0|[1-9][0-9]*)([.][-a-z0-9]+)*$ ]] && NUM="${BASH_REMATCH[1]}" || NUM="0"
+
+# If our pod name is even, we delete the backup configuration b/c we're
+# going to start in primary mode. If our pod name is odd, we delete the
+# primary configuration b/c we're going to start in backup mode
+ACTIVE_MODE="primary"
+DELETE_MODE="backup"
+[ $(( NUM % 2 )) -ne 0 ] && ACTIVE_MODE="backup" && DELETE_MODE="primary"
+
 # Substitute the hostname where appropriate
 cat "${CONF_DIR}/broker.xml.template" | \
 	xmlstarlet ed -P \
 		-N "root=urn:activemq" \
 		-N "core=urn:activemq:core" \
 		--update "/root:configuration/core:core/core:name" -v "${POD_HOSTNAME}" \
-		--update "/root:configuration/core:core/core:ha-policy/core:replication/core:primary/core:manager/core:properties/core:property[@key = 'connect-string']/@value" -v "${ZK_HOST}" \
+		--delete "/root:configuration/core:core/core:ha-policy/core:replication/core:${DELETE_MODE}" \
+		--update "/root:configuration/core:core/core:ha-policy/core:replication/core:${ACTIVE_MODE}/core:manager/core:properties/core:property[@key = 'connect-string']/@value" -v "${ZK_HOST}" \
 		--update "/root:configuration/core:core/core:cluster-password" -v "${ARTEMIS_CLUSTER_PASSWORD}" | \
 	# For these replacements, the values must first be URL-escaped, then XML-escaped, and finally
 	# the & symbol must be escaped so sed doesn't replace it with the matching pattern

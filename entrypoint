@@ -129,9 +129,10 @@ cat "${CONF_DIR}/bootstrap.xml.template" | \
 # If our pod name is even, we delete the backup configuration b/c we're
 # going to start in primary mode. If our pod name is odd, we delete the
 # primary configuration b/c we're going to start in backup mode
+set_as_boolean EVEN_ODD_MODE "false"
 ACTIVE_MODE="primary"
 DELETE_MODE="backup"
-[ $(( NUM % 2 )) -ne 0 ] && ACTIVE_MODE="backup" && DELETE_MODE="primary"
+as_boolean "${EVEN_ODD_MODE}" && [ $(( NUM % 2 )) -ne 0 ] && ACTIVE_MODE="backup" && DELETE_MODE="primary"
 
 # Substitute the hostname where appropriate
 cat "${CONF_DIR}/broker.xml.template" | \

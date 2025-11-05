@@ -68,7 +68,7 @@ LABEL APP="Artemis"
 LABEL VERSION="${VER}"
 
 # Environment variables: ActiveMQ directories
-ARG HOME_DIR="${BASE_DIR}/${PKG}"
+ENV HOME_DIR="${BASE_DIR}/${PKG}"
 
 ENV ARTEMIS_HOME="${HOME_DIR}"
 ENV ARTEMIS_BASE="${HOME_DIR}"

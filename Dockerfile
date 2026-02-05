@@ -96,7 +96,7 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 #
 RUN set-java "${JAVA}" && \
     apt-get -y install \
-        libaio1 \
+        libaio1t64 \
       && \
     apt-get clean && \
     mkdir -p "${HOME_DIR}" "${CONF_DIR}" "${DATA_DIR}" "${LOGS_DIR}" "${TEMP_DIR}" && \

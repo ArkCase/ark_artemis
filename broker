@@ -76,6 +76,7 @@ fi
 to_array JAVA_ARGS
 
 # Extra JVM args
+set_or_default JAVA_ARGS_APPEND
 to_array JAVA_ARGS_APPEND
 
 # Uncomment to enable logging for Safepoint JVM pauses

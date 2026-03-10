@@ -29,10 +29,10 @@
 ARG PUBLIC_REGISTRY="public.ecr.aws"
 ARG ARCH="amd64"
 ARG OS="linux"
-ARG VER="2.44.0"
+ARG VER="2.52.0"
 ARG PKG="artemis"
-ARG KEYS="https://downloads.apache.org/activemq/KEYS"
-ARG SRC="https://archive.apache.org/dist/activemq/activemq-artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
+ARG KEYS="https://downloads.apache.org/artemis/KEYS"
+ARG SRC="https://downloads.apache.org/artemis/artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JGROUPS_K8S_VER="2.0.2.Final"
 ARG JGROUPS_K8S_SRC="org.jgroups.kubernetes:jgroups-kubernetes:${JGROUPS_K8S_VER}"
 ARG JAVA="17"
@@ -122,7 +122,8 @@ RUN apply-fixes /CVE
 
 RUN rm -rf /tmp/* && \
     chown -R "${APP_USER}:${APP_GROUP}" "${BASE_DIR}" && \
-    chmod -R "u=rwX,g=rX,o=" "${BASE_DIR}"
+    chmod -R "u=rwX,g=rX,o=" "${BASE_DIR}" && \
+    chown root "${HOME_DIR}/bin"
 
 #
 # Launch as the application's user

@@ -3,6 +3,11 @@
 set -euo pipefail
 . /.functions
 
+#
+# First things first, FIPS!!
+#
+set_fips
+
 mask_password()
 {
 	local PASSWORD="${1}"

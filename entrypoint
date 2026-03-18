@@ -217,7 +217,19 @@ fi
 set_or_default JAVA_TOOL_OPTIONS ""
 
 # Require SSL for Zookeeper
-JAVA_TOOL_OPTIONS+=" -Dzookeeper.client.secure=true"
+ZK_SSL_FLAGS=(
+	-Dzookeeper.clientCnxnSocket="org.apache.zookeeper.ClientCnxnSocketNetty"
+	-Dzookeeper.client.secure="true"
+	-Dzookeeper.ssl.hostnameVerification="true"
+	-Dzookeeper.ssl.protocol="TLSv1.3"
+	-Dzookeeper.ssl.keyStore.location="/.ssl/keystore.pkcs12"
+	-Dzookeeper.ssl.keyStore.password="$(</.ssl/keystore.pass)"
+	-Dzookeeper.ssl.keyStore.type="PKCS12"
+	-Dzookeeper.ssl.trustStore.location="/.ssl/keystore.pkcs12"
+	-Dzookeeper.ssl.trustStore.password="$(</.ssl/keystore.pass)"
+	-Dzookeeper.ssl.trustStore.type="PKCS12"
+)
+export JAVA_ARGS_APPEND+=" ${ZK_SSL_FLAGS[@]}"
 
 CMD="${HOME_DIR}/bin/broker"
 [ ${#} -lt 1 ] && set -- "run"

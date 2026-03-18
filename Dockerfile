@@ -99,6 +99,7 @@ RUN set-java "${JAVA}" && \
         libaio1t64 \
       && \
     apt-get clean && \
+    ln -s x86_64-linux-gnu/libaio.so.1t64 /usr/lib/libaio.so.1 && \
     mkdir -p "${HOME_DIR}" "${CONF_DIR}" "${DATA_DIR}" "${LOGS_DIR}" "${TEMP_DIR}" && \
     verified-download --keys "${KEYS}" "${SRC}" "/artemis.tar.gz" && \
     tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis.tar.gz" && \

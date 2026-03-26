@@ -155,8 +155,27 @@ if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 fi
 
 set_or_default JAVA_ARGS_APPEND
-[ -n "${ZOOKEEPER_SSL_CLIENT_OPTIONS}" ] && JAVA_ARGS_APPEND+=" ${ZOOKEEPER_SSL_CLIENT_OPTIONS}"
 export JAVA_ARGS_APPEND
+
+#
+# Add the ZooKeeper SSL stuff
+#
+JAVA_ARGS_APPEND+=" ${ZOOKEEPER_SSL_CLIENT_OPTIONS}"
+
+#
+# Add the SSL opts that Artemis needs
+#
+ARTEMIS_SSL_OPTS=(
+	-Dorg.apache.activemq.ssl.keyStore="${JAVA_KEYSTORE}"
+	-Dorg.apache.activemq.ssl.keyStorePassword="${JAVA_KEYSTORE_PASSWORD}"
+	-Dorg.apache.activemq.ssl.keyStoreType="${JAVA_KEYSTORE_TYPE}"
+
+	-Dorg.apache.activemq.ssl.trustStore="${JAVA_TRUSTSTORE}"
+	-Dorg.apache.activemq.ssl.trustStorePassword="${JAVA_TRUSTSTORE_PASSWORD}"
+	-Dorg.apache.activemq.ssl.trustStoreType="${JAVA_TRUSTSTORE_TYPE}"
+)
+JAVA_ARGS_APPEND+=" ${ARTEMIS_SSL_OPTS[@]}"
+unset ARTEMIS_SSL_OPTS
 
 CMD="${HOME_DIR}/bin/broker"
 [ ${#} -lt 1 ] && set -- "run"

@@ -75,6 +75,15 @@ fi
 # Convert to an array, respecting quotes
 to_array JAVA_ARGS
 
+#
+# Add the FIPS stuff
+#
+if is_fips ; then
+	BOOTCLASSPATH="$(find "${BC_DIR}" -type f | tr '\n' ':')"
+	JAVA_ARGS=( -Xbootclasspath/a:"${BOOTCLASSPATH}" "${JAVA_ARGS[@]}" )
+	# JAVA_ARGS+=( -Dartemis.extra.libs="${BC_DIR}" )
+fi
+
 # Extra JVM args
 set_or_default JAVA_ARGS_APPEND
 to_array JAVA_ARGS_APPEND

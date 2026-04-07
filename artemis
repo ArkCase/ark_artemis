@@ -41,6 +41,15 @@ if [ -v JAVA_ARGS_APPEND ] ; then
 	APPEND_ARGS+=( "${JAVA_ARGS_APPEND[@]}" )
 fi
 
+#
+# Add the FIPS stuff
+#
+if is_fips ; then
+	BOOTCLASSPATH="$(find "${BC_DIR}" -type f | tr '\n' ':')"
+	PREPEND_ARGS=( -Xbootclasspath/a:"${BOOTCLASSPATH}" "${PREPEND_ARGS[@]}" )
+	# APPEND_ARGS+=( -Dartemis.extra.libs="${BC_DIR}" )
+fi
+
 CMD=(
 	java
 		"${PREPEND_ARGS[@]}"

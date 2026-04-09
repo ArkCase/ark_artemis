@@ -75,9 +75,6 @@ fi
 # Convert to an array, respecting quotes
 to_array JAVA_ARGS
 
-JAVA_ARGS=( -Xbootclasspath/a:"$(find "${FIPS_DIR}" -type f | tr '\n' ':')" "${JAVA_ARGS[@]}" )
-# JAVA_ARGS+=( -Dartemis.extra.libs="${FIPS_DIR}" )
-
 # Extra JVM args
 set_or_default JAVA_ARGS_APPEND
 to_array JAVA_ARGS_APPEND

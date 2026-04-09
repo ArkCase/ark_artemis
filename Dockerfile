@@ -120,6 +120,8 @@ COPY --chown=root:root --chmod=0755 entrypoint /
 RUN groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
     useradd  --uid "${APP_UID}" --gid "${APP_GROUP}" --groups "${ACM_GROUP}" --create-home --home-dir "${HOME_DIR}" "${APP_USER}"
 
+RUN export APP_LIB_DIRS="${HOME_DIR}/web/console.war/WEB-INF/lib" && deploy-fips-jars
+
 COPY --chown=root:root --chmod=0755 CVE /CVE
 RUN apply-fixes /CVE
 

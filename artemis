@@ -41,9 +41,6 @@ if [ -v JAVA_ARGS_APPEND ] ; then
 	APPEND_ARGS+=( "${JAVA_ARGS_APPEND[@]}" )
 fi
 
-PREPEND_ARGS=( -Xbootclasspath/a:"$(find "${FIPS_DIR}" -type f | tr '\n' ':')" "${PREPEND_ARGS[@]}" )
-# APPEND_ARGS+=( -Dartemis.extra.libs="${FIPS_DIR}" )
-
 CMD=(
 	java
 		"${PREPEND_ARGS[@]}"

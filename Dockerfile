@@ -36,6 +36,8 @@ ARG KEYS="https://downloads.apache.org/artemis/KEYS"
 ARG SRC="https://archive.apache.org/dist/artemis/artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JGROUPS_K8S_VER="2.0.2.Final"
 ARG JGROUPS_K8S_SRC="org.jgroups.kubernetes:jgroups-kubernetes:${JGROUPS_K8S_VER}"
+ARG JETTY_VER="12.1.7"
+ARG JETTY_ALPN_BC_SERVER_SRC="org.eclipse.jetty:jetty-alpn-bouncycastle-server:${JETTY_VER}"
 ARG JAVA="17"
 
 ARG BASE_REGISTRY="${PUBLIC_REGISTRY}"
@@ -58,6 +60,7 @@ ARG APP_GROUP="${APP_USER}"
 ARG KEYS
 ARG SRC
 ARG JGROUPS_K8S_SRC
+ARG JETTY_ALPN_BC_SERVER_SRC
 ARG JAVA
 
 #
@@ -79,6 +82,7 @@ ENV ARTEMIS_DATA="${DATA_DIR}"
 ENV ARTEMIS_LOGS="${LOGS_DIR}"
 ENV ARTEMIS_TEMP="${TEMP_DIR}"
 ENV ARTEMIS_LIB="${ARTEMIS_HOME}/lib"
+ENV ARTEMIS_WEB_LIB="${ARTEMIS_HOME}/web/console.war/WEB-INF/lib"
 
 # Environment variables: system stuff
 ENV APP_UID="${APP_UID}"
@@ -106,7 +110,8 @@ RUN set-java "${JAVA}" && \
     verified-download --keys "${KEYS}" "${SRC}" "/artemis.tar.gz" && \
     tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis.tar.gz" && \
     rm -rf "${HOME_DIR}/examples" "/artemis.tar.gz" && \
-    mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}"
+    mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}" && \
+    mvn-get "${JETTY_ALPN_BC_SERVER_SRC}" "${ARTEMIS_LIB}"
 
 #
 # Install the remaining files
@@ -119,8 +124,6 @@ COPY --chown=root:root --chmod=0755 entrypoint /
 #
 RUN groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
     useradd  --uid "${APP_UID}" --gid "${APP_GROUP}" --groups "${ACM_GROUP}" --create-home --home-dir "${HOME_DIR}" "${APP_USER}"
-
-RUN export APP_LIB_DIRS="${HOME_DIR}/web/console.war/WEB-INF/lib" && deploy-fips-jars
 
 COPY --chown=root:root --chmod=0755 CVE /CVE
 RUN apply-fixes /CVE

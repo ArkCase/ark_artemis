@@ -183,6 +183,10 @@ ARTEMIS_SSL_OPTS+=(
 )
 [ -n "${JAVA_TRUSTSTORE_PROVIDER:-}" ] && ARTEMIS_SSL_OPTS+=( -Dorg.apache.activemq.ssl.trustStoreProvider="${JAVA_TRUSTSTORE_PROVIDER}" )
 
+# JUL to Log4J?
+LOG4J_JUL="$(find "${ARTEMIS_LIB}" -type f -name 'log4j-jul-*.jar' 2>&1)" || fail "Failed to check for the Log4J JUL bridge (rc=${?}): ${LOG4J_JUL}"
+is_file_readable "${LOG4J_JUL}" && JAVA_ARGS_APPEND+=" -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
+
 #
 # Add the flags!
 #

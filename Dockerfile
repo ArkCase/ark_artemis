@@ -100,7 +100,8 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 #
 # Update local packages and install required packages
 #
-RUN set-java "${JAVA}" && \
+RUN --mount=type=bind,target=/src \
+    set-java "${JAVA}" && \
     apt-get -y install \
         libaio1t64 \
       && \
@@ -111,7 +112,8 @@ RUN set-java "${JAVA}" && \
     tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis.tar.gz" && \
     rm -rf "${HOME_DIR}/examples" "/artemis.tar.gz" && \
     mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}" && \
-    mvn-get "${JETTY_ALPN_BC_SERVER_SRC}" "${ARTEMIS_LIB}"
+    mvn-get "${JETTY_ALPN_BC_SERVER_SRC}" "${ARTEMIS_LIB}" && \
+    /src/download-jul
 
 #
 # Install the remaining files

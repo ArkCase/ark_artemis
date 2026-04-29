@@ -1,0 +1,11 @@
+session:
+  connect: ${ZK_HOST}
+  sessionTimeout: 1000
+  connectionTimeout: 5000
+
+  retry:
+    count: 0
+    delay: 1000
+
+wrapper:
+  mode: "mkroot"

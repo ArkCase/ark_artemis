@@ -115,6 +115,8 @@ RUN --mount=type=bind,target=/src \
     mvn-get "${JETTY_ALPN_BC_SERVER_SRC}" "${ARTEMIS_LIB}" && \
     /src/download-jul
 
+COPY --chown=root:root --chmod=0444 curator-wrapper.yaml /usr/local/etc/curator-wrapper.yaml
+
 #
 # Install the remaining files
 #

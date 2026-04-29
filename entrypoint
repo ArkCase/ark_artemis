@@ -16,7 +16,8 @@ init_ssl
 mask_password()
 {
 	local PASSWORD="${1}"
-	local HASH="$(artemis mask --hash "${PASSWORD}" | awk '{ print $2 }' | tr -d '\n')"
+	local HASH=""
+	HASH="$(artemis mask --hash "${PASSWORD}" | awk '{ print $2 }' | tr -d '\n')" || return ${?}
 	echo -n "ENC(${HASH})"
 }
 
@@ -30,7 +31,9 @@ add_user()
 	local USERNAME="${1}"
 	local PASSWORD="${2}"
 	local FILE="${3}"
-	echo "${USERNAME} = $(mask_password "${PASSWORD}")" >> "${FILE}"
+	local PASS=""
+	PASS="$(mask_password "${PASSWORD}")" || fail "Failed to mask the password for the user [${USERNAME}] (rc=${?})"
+	echo "${USERNAME} = ${PASS}" >> "${FILE}"
 }
 
 add_roles()
@@ -124,9 +127,6 @@ if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 	#
 	add_user  "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_PASSWORD}" "${USERS_FILE}"
 	add_roles "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_ROLES}"    "${ROLES_FILE}"
-
-	# The guest
-	add_user "guest" "guest" "${USERS_FILE}"
 
 	# Now add the dynamic users
 	for USERNAME in "${!ARTEMIS_USERNAME_@}" ; do

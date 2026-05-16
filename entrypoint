@@ -3,10 +3,30 @@
 set -euo pipefail
 . /.functions
 
+#
+# Init all the SSL-related stuff
+#
+init_ssl
+
+#
+# Add the ZooKeeper client options
+#
+. /usr/local/bin/zk-client-init
+
+#
+# Make sure the ZooKeeper chroot znode exists!
+#
+(
+	export CURATOR_WRAPPER_JAR="/usr/local/bin/curator-wrapper.jar"
+	export CURATOR_WRAPPER_CONF="/usr/local/etc/curator-wrapper.yaml"
+	execute java "${ZOOKEEPER_SSL_CLIENT_OPTIONS_ARR[@]}" -jar "${CURATOR_WRAPPER_JAR}" -c "${CURATOR_WRAPPER_CONF}"
+) || exit ${?}
+
 mask_password()
 {
 	local PASSWORD="${1}"
-	local HASH="$(artemis mask --hash "${PASSWORD}" | awk '{ print $2 }' | tr -d '\n')"
+	local HASH=""
+	HASH="$(artemis mask --hash "${PASSWORD}" | awk '{ print $2 }' | tr -d '\n')" || return ${?}
 	echo -n "ENC(${HASH})"
 }
 
@@ -20,7 +40,9 @@ add_user()
 	local USERNAME="${1}"
 	local PASSWORD="${2}"
 	local FILE="${3}"
-	echo "${USERNAME} = $(mask_password "${PASSWORD}")" >> "${FILE}"
+	local PASS=""
+	PASS="$(mask_password "${PASSWORD}")" || fail "Failed to mask the password for the user [${USERNAME}] (rc=${?})"
+	echo "${USERNAME} = ${PASS}" >> "${FILE}"
 }
 
 add_roles()
@@ -49,12 +71,6 @@ add_roles()
 	done
 }
 
-sed_escape()
-{
-	local V="${1}"
-	echo -n "${V}" | sed -e 's;&;\\&;g'
-}
-
 set_or_default BASE_DIR "/app"
 set_or_default CONF_DIR "${BASE_DIR}/conf"
 set_or_default DATA_DIR "${BASE_DIR}/data"
@@ -64,92 +80,18 @@ set_or_default LOGS_DIR "${BASE_DIR}/logs"
 set_or_default JAVA_MEM_ARGS "-XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0"
 export JAVA_MEM_ARGS
 
-# Update the SSL stuff
-init_ssl
-
-# Set the JVM version
-set-java
-
-MAX_BOOT_DELAY="60"
-if [ -v BOOT_DELAY ] && [[ "${BOOT_DELAY}" =~ ^[0-9]+$ ]] ; then
-	BOOT_DELAY="$(( 10#${BOOT_DELAY} ))"
-	if [ ${BOOT_DELAY} -gt 0 ] ; then
-		[ ${BOOT_DELAY} -gt ${MAX_BOOT_DELAY} ] && BOOT_DELAY=${MAX_BOOT_DELAY}
-		say "Applying a boot delay of ${BOOT_DELAY} seconds"
-		START="$(date +%s)"
-		while true ; do
-			DIFF="$(( $(date +%s) - START ))"
-			[ ${DIFF} -ge ${BOOT_DELAY} ] && break
-			sleep 1 || fail "Boot delay aborted - exiting"
-		done
-	fi
-fi
-
 require_dir_readwrite "${CONF_DIR}"
 require_dir_readwrite "${DATA_DIR}"
 require_dir_readwrite "${LOGS_DIR}"
 
 export POD_HOSTNAME="$(hostname)"
 
-if [ ! -v NODE_ID ] ; then
-	say "No NODE_ID envvar was given, will attempt to guess it"
-	if [ ! -v POD_NAME ] ; then
-		say "No POD_NAME variable was found, will use the first component of the hostname instead"
-		POD_NAME="${POD_HOSTNAME%%.*}"
-	fi
-	[[ "${POD_NAME}" =~ ^.*-([0-9]+)$ ]] || fail "The pod name [${POD_NAME}] doesn't match the pattern for a stateful pod (must end with a number)"
-	NODE_ID="${BASH_REMATCH[1]}"
-fi
-[[ "${NODE_ID}" =~ ^[0-9]+$ ]] || fail "The NODE_ID value [${NODE_ID}] is not a valid number"
-
-# Remove leading zeros
-export NODE_ID="$(( 10#${NODE_ID} ))"
-
 # We need to XML-escape this value b/c it will get substituted into text values
-KEYSTORE="${SSL_DIR}/keystore.pkcs12"
-KEYSTORE_PASSWORD="$(<"${SSL_DIR}/keystore.pass")" || fail "Failed to read the SSL keystore password"
+export KEYSTORE="${JAVA_KEYSTORE}"
+export KEYSTORE_PASSWORD="${JAVA_KEYSTORE_PASSWORD}"
 
-# No need to XML-escape this value, as xmlstarlet will do it for us (also, don't allow empty values)
 set_or_default ARTEMIS_CLUSTER_PASSWORD "PBWaPfidc5Ko8kiof4338RvxZsWwwPOFtDMYF62IXDd5aWGJotw6QH2ARIozKPWE"
-
-[ -v ZK_HOST ] || ZK_HOST=""
-
-# Set the SSL protection for the UI console
-cat "${CONF_DIR}/bootstrap.xml.template" | \
-	xmlstarlet ed -P \
-		-N "root=http://activemq.apache.org/schema" \
-		--update "/root:broker/root:web[@path = 'web']/root:binding/@keyStorePath" -v "${KEYSTORE}" \
-		--update "/root:broker/root:web[@path = 'web']/root:binding/@keyStorePassword" -v "${KEYSTORE_PASSWORD}" \
-	> "${CONF_DIR}/bootstrap.xml"
-
-# Detect whether we're in primary mode or backup mode...by default
-# we assume we're primary and must delete the backup configuration
-[[ "${POD_HOSTNAME,,}" =~ ^[^.]+-(0|[1-9][0-9]*)([.][-a-z0-9]+)*$ ]] && NUM="${BASH_REMATCH[1]}" || NUM="0"
-
-# If our pod name is even, we delete the backup configuration b/c we're
-# going to start in primary mode. If our pod name is odd, we delete the
-# primary configuration b/c we're going to start in backup mode
-set_as_boolean EVEN_ODD_MODE "false"
-ACTIVE_MODE="primary"
-DELETE_MODE="backup"
-as_boolean "${EVEN_ODD_MODE}" && [ $(( NUM % 2 )) -ne 0 ] && ACTIVE_MODE="backup" && DELETE_MODE="primary"
-
-# Substitute the hostname where appropriate
-cat "${CONF_DIR}/broker.xml.template" | \
-	xmlstarlet ed -P \
-		-N "root=urn:activemq" \
-		-N "core=urn:activemq:core" \
-		--update "/root:configuration/core:core/core:name" -v "${POD_HOSTNAME}" \
-		--delete "/root:configuration/core:core/core:ha-policy/core:replication/core:${DELETE_MODE}" \
-		--update "/root:configuration/core:core/core:ha-policy/core:replication/core:${ACTIVE_MODE}/core:manager/core:properties/core:property[@key = 'connect-string']/@value" -v "${ZK_HOST}" \
-		--update "/root:configuration/core:core/core:cluster-password" -v "${ARTEMIS_CLUSTER_PASSWORD}" | \
-	# For these replacements, the values must first be URL-escaped, then XML-escaped, and finally
-	# the & symbol must be escaped so sed doesn't replace it with the matching pattern
-	sed \
-		-e "s'\${POD_HOSTNAME}'$(sed_escape "$(xml_escape "${POD_HOSTNAME}")")'g" \
-		-e "s'\${KEYSTORE}'$(sed_escape "$(xml_escape "$(urlencode_query "${KEYSTORE}")")")'g" \
-		-e "s'\${KEYSTORE_PASSWORD}'$(sed_escape "$(xml_escape "$(urlencode_query "${KEYSTORE_PASSWORD}")")")'g" \
-	> "${CONF_DIR}/broker.xml"
+export ARTEMIS_CLUSTER_PASSWORD
 
 # This is required at runtime
 export CLUSTER_DOMAIN="$(get_cluster_domain)"
@@ -180,9 +122,6 @@ if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 	add_user  "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_PASSWORD}" "${USERS_FILE}"
 	add_roles "${ARTEMIS_ADMIN_USERNAME}" "${ARTEMIS_ADMIN_ROLES}"    "${ROLES_FILE}"
 
-	# The guest
-	add_user "guest" "guest" "${USERS_FILE}"
-
 	# Now add the dynamic users
 	for USERNAME in "${!ARTEMIS_USERNAME_@}" ; do
 		[[ "${USERNAME}" =~ ^ARTEMIS_USERNAME_([0-9]+)$ ]] || continue
@@ -209,23 +148,44 @@ if [ "${ARTEMIS_NEW_USER_MODEL:-false}" == "true" ] ; then
 	ok "Authentication configured"
 fi
 
-set_or_default JAVA_TOOL_OPTIONS ""
+set_or_default JAVA_ARGS_APPEND
+export JAVA_ARGS_APPEND
 
-# Require SSL for Zookeeper
-ZK_SSL_FLAGS=(
-	-Dzookeeper.clientCnxnSocket="org.apache.zookeeper.ClientCnxnSocketNetty"
-	-Dzookeeper.client.secure="true"
-	-Dzookeeper.ssl.hostnameVerification="true"
-	-Dzookeeper.ssl.protocol="TLSv1.3"
-	-Dzookeeper.ssl.enabledProtocols="TLSv1.3"
-	-Dzookeeper.ssl.keyStore.location="${SSL_DIR}/keystore.pkcs12"
-	-Dzookeeper.ssl.keyStore.passwordPath="${SSL_DIR}/keystore.pass"
-	-Dzookeeper.ssl.keyStore.type="PKCS12"
-	-Dzookeeper.ssl.trustStore.location="${SSL_DIR}/keystore.pkcs12"
-	-Dzookeeper.ssl.trustStore.passwordPath="${SSL_DIR}/keystore.pass"
-	-Dzookeeper.ssl.trustStore.type="PKCS12"
+#
+# Add the ZooKeeper SSL stuff
+#
+JAVA_ARGS_APPEND+=" ${ZOOKEEPER_SSL_CLIENT_OPTIONS}"
+
+#
+# Compute the SSL opts that Artemis needs
+#
+ARTEMIS_SSL_OPTS=()
+
+# Key store
+ARTEMIS_SSL_OPTS+=(
+	-Dorg.apache.activemq.ssl.keyStore="${JAVA_KEYSTORE}"
+	-Dorg.apache.activemq.ssl.keyStorePassword="${JAVA_KEYSTORE_PASSWORD}"
+	-Dorg.apache.activemq.ssl.keyStoreType="${JAVA_KEYSTORE_TYPE}"
 )
-export JAVA_ARGS_APPEND+=" ${ZK_SSL_FLAGS[@]}"
+[ -n "${JAVA_KEYSTORE_PROVIDER:-}" ] && ARTEMIS_SSL_OPTS+=( -Dorg.apache.activemq.ssl.keyStoreProvider="${JAVA_KEYSTORE_PROVIDER}" )
+
+# Trust store
+ARTEMIS_SSL_OPTS+=(
+	-Dorg.apache.activemq.ssl.trustStore="${JAVA_TRUSTSTORE}"
+	-Dorg.apache.activemq.ssl.trustStorePassword="${JAVA_TRUSTSTORE_PASSWORD}"
+	-Dorg.apache.activemq.ssl.trustStoreType="${JAVA_TRUSTSTORE_TYPE}"
+)
+[ -n "${JAVA_TRUSTSTORE_PROVIDER:-}" ] && ARTEMIS_SSL_OPTS+=( -Dorg.apache.activemq.ssl.trustStoreProvider="${JAVA_TRUSTSTORE_PROVIDER}" )
+
+# JUL to Log4J?
+LOG4J_JUL="$(find "${ARTEMIS_LIB}" -type f -name 'log4j-jul-*.jar' 2>&1)" || fail "Failed to check for the Log4J JUL bridge (rc=${?}): ${LOG4J_JUL}"
+is_file_readable "${LOG4J_JUL}" && JAVA_ARGS_APPEND+=" -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
+
+#
+# Add the flags!
+#
+JAVA_ARGS_APPEND+=" ${ARTEMIS_SSL_OPTS[@]}"
+unset ARTEMIS_SSL_OPTS
 
 CMD="${HOME_DIR}/bin/broker"
 [ ${#} -lt 1 ] && set -- "run"

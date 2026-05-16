@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -euo pipefail
+. /.functions
+
+LOG4J="$(find "${ARTEMIS_LIB}" -type f -name 'log4j-api-*.jar' 2>&1)" || fail "Failed to search for the Log4J API JAR (rc=${?}): ${LOG4J}"
+[ -n "${LOG4J}" ] || fail "The Log4J API JAR was not found - are you sure Artemis still uses it?"
+
+[[ "${LOG4J}" =~ ^(.*/)?log4j-api-(.*)[.]jar$ ]] || fail "Failed to compute the Log4J version from [${LOG4J}]"
+
+LOG4J_VER="${BASH_REMATCH[2]}"
+
+set_or_default LOG4J_GROUP "org.apache.logging.log4j"
+set_or_default LOG4J_JUL "log4j-jul"
+
+doing "Installing the Log4J JUL Bridge, version ${LOG4J_VER} ..."
+OUT="$(mvn-get "${LOG4J_GROUP}:${LOG4J_JUL}:${LOG4J_VER}:jar" "${ARTEMIS_LIB}" 2>&1)" || fail "Failed to install! (rc=${?}): ${OUT}"
+ok "The Log4J JUL Bridge was installed!"

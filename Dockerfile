@@ -28,12 +28,11 @@
 
 ARG FIPS=""
 ARG PUBLIC_REGISTRY="public.ecr.aws"
+ARG PRIVATE_REGISTRY
 ARG ARCH="amd64"
 ARG OS="linux"
 ARG VER="2.55.0"
 ARG PKG="artemis"
-ARG KEYS="https://dlcdn.apache.org/artemis/KEYS"
-ARG SRC="https://dlcdn.apache.org/artemis/artemis/${VER}/apache-artemis-${VER}-bin.tar.gz"
 ARG JGROUPS_K8S_VER="2.0.2.Final"
 ARG JGROUPS_K8S_SRC="org.jgroups.kubernetes:jgroups-kubernetes:${JGROUPS_K8S_VER}"
 ARG JETTY_VER="12.1.7"
@@ -46,6 +45,15 @@ ARG BASE_VER="24.04"
 ARG BASE_VER_PFX=""
 ARG BASE_IMG="${BASE_REGISTRY}/${BASE_REPO}${FIPS}:${BASE_VER_PFX}${BASE_VER}"
 
+ARG ARTEMIS_REG="${PRIVATE_REGISTRY}"
+ARG ARTEMIS_REPO="arkcase/rebuild-artemis"
+ARG ARTEMIS_VER_PFX="${BASE_VER_PFX}"
+ARG ARTEMIS_IMG="${ARTEMIS_REG}/${ARTEMIS_REPO}:${ARTEMIS_VER_PFX}${VER}"
+
+FROM "${ARTEMIS_IMG}" AS artemis-src
+
+ARG BASE_IMG
+
 FROM "${BASE_IMG}"
 
 ARG FIPS
@@ -57,8 +65,6 @@ ARG APP_UID="1998"
 ARG APP_GID="${APP_UID}"
 ARG APP_USER="${PKG}"
 ARG APP_GROUP="${APP_USER}"
-ARG KEYS
-ARG SRC
 ARG JGROUPS_K8S_SRC
 ARG JETTY_ALPN_BC_SERVER_SRC
 ARG JAVA
@@ -101,6 +107,7 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 # Update local packages and install required packages
 #
 RUN --mount=type=bind,target=/src \
+    --mount=type=cache,from=artemis-src,target=/artemis-src,ro=true \
     set-java "${JAVA}" && \
     apt-get -y install \
         libaio1t64 \
@@ -108,9 +115,8 @@ RUN --mount=type=bind,target=/src \
     apt-get clean && \
     ln -s x86_64-linux-gnu/libaio.so.1t64 /usr/lib/libaio.so.1 && \
     mkdir -p "${HOME_DIR}" "${CONF_DIR}" "${DATA_DIR}" "${LOGS_DIR}" "${TEMP_DIR}" && \
-    verified-download --keys "${KEYS}" "${SRC}" "/artemis.tar.gz" && \
-    tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis.tar.gz" && \
-    rm -rf "${HOME_DIR}/examples" "/artemis.tar.gz" && \
+    tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis-src/apache-artemis-${VER}-bin.tar.gz" && \
+    rm -rf "${HOME_DIR}/examples" && \
     mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}" && \
     mvn-get "${JETTY_ALPN_BC_SERVER_SRC}" "${ARTEMIS_LIB}" && \
     /src/download-jul

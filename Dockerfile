@@ -31,7 +31,7 @@ ARG PUBLIC_REGISTRY="public.ecr.aws"
 ARG PRIVATE_REGISTRY
 ARG ARCH="amd64"
 ARG OS="linux"
-ARG VER="2.55.0"
+ARG VER="2.56.0"
 ARG PKG="artemis"
 ARG JGROUPS_K8S_VER="2.0.2.Final"
 ARG JGROUPS_K8S_SRC="org.jgroups.kubernetes:jgroups-kubernetes:${JGROUPS_K8S_VER}"

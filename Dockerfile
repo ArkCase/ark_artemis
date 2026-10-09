@@ -35,7 +35,7 @@ ARG VER="2.57.0"
 ARG PKG="artemis"
 ARG JGROUPS_K8S_VER="2.0.3.Final"
 ARG JGROUPS_K8S_SRC="org.jgroups.kubernetes:jgroups-kubernetes:${JGROUPS_K8S_VER}"
-ARG JETTY_VER="12.1.7"
+ARG JETTY_VER="12.1.12"
 ARG JETTY_ALPN_BC_SERVER_SRC="org.eclipse.jetty:jetty-alpn-bouncycastle-server:${JETTY_VER}"
 ARG JAVA="17"
 

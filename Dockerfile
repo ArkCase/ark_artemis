@@ -33,6 +33,9 @@ ARG ARCH="amd64"
 ARG OS="linux"
 ARG VER="2.57.0"
 ARG PKG="artemis"
+ARG JGROUPS_AUTH_VER="1.0.0"
+ARG JGROUPS_AUTH_SRC="com.armedia.jgroups:jgroups-hmac-auth:${JGROUPS_AUTH_VER}"
+ARG JGROUPS_AUTH_REPO="https://nexus.armedia.com/repository/armedia"
 ARG JGROUPS_K8S_VER="2.0.3.Final"
 ARG JGROUPS_K8S_SRC="org.jgroups.kubernetes:jgroups-kubernetes:${JGROUPS_K8S_VER}"
 ARG JETTY_VER="12.1.12"
@@ -65,6 +68,8 @@ ARG APP_UID="1998"
 ARG APP_GID="${APP_UID}"
 ARG APP_USER="${PKG}"
 ARG APP_GROUP="${APP_USER}"
+ARG JGROUPS_AUTH_SRC
+ARG JGROUPS_AUTH_REPO
 ARG JGROUPS_K8S_SRC
 ARG JETTY_ALPN_BC_SERVER_SRC
 ARG JAVA
@@ -108,6 +113,7 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 #
 RUN --mount=type=bind,target=/src \
     --mount=type=cache,from=artemis-src,target=/artemis-src,ro=true \
+    --mount=type=secret,id=mvn_get_auth \
     set-java "${JAVA}" && \
     apt-get -y install \
         libaio1t64 \
@@ -117,6 +123,8 @@ RUN --mount=type=bind,target=/src \
     mkdir -p "${HOME_DIR}" "${CONF_DIR}" "${DATA_DIR}" "${LOGS_DIR}" "${TEMP_DIR}" && \
     tar -C "${HOME_DIR}" --strip-components=1 -xzvf "/artemis-src/apache-artemis-${VER}-bin.tar.gz" && \
     rm -rf "${HOME_DIR}/examples" && \
+    . /run/secrets/mvn_get_auth && \
+    mvn-get "${JGROUPS_AUTH_SRC}" "${JGROUPS_AUTH_REPO}" "${ARTEMIS_LIB}" && \
     mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}" && \
     mvn-get "${JETTY_ALPN_BC_SERVER_SRC}" "${ARTEMIS_LIB}" && \
     /src/download-jul

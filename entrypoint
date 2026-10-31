@@ -184,7 +184,7 @@ is_file_readable "${LOG4J_JUL}" && JAVA_ARGS_APPEND+=" -Djava.util.logging.manag
 #
 # Add the flags!
 #
-JAVA_ARGS_APPEND+=" ${ARTEMIS_SSL_OPTS[@]}"
+JAVA_ARGS_APPEND+=" ${ARTEMIS_SSL_OPTS[*]}"
 unset ARTEMIS_SSL_OPTS
 
 CMD="${HOME_DIR}/bin/broker"

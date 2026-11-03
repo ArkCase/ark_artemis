@@ -109,7 +109,7 @@ WORKDIR "${BASE_DIR}"
 ENV PATH="${HOME_DIR}/bin:${PATH}"
 
 #
-# Update local packages and install required packages
+# Do the actual installation
 #
 RUN --mount=type=bind,target=/src \
     --mount=type=cache,from=artemis-src,target=/artemis-src,ro=true \
@@ -127,25 +127,14 @@ RUN --mount=type=bind,target=/src \
     mvn-get "${JGROUPS_AUTH_SRC}" "${JGROUPS_AUTH_REPO}" "${ARTEMIS_LIB}" && \
     mvn-get "${JGROUPS_K8S_SRC}" "${ARTEMIS_LIB}" && \
     mvn-get "${JETTY_ALPN_BC_SERVER_SRC}" "${ARTEMIS_LIB}" && \
-    /src/download-jul
-
-COPY --chown=root:root --chmod=0444 curator-wrapper.yaml /usr/local/etc/curator-wrapper.yaml
-
-#
-# Install the remaining files
-#
-COPY --chown=root:root --chmod=0755 artemis broker "${ARTEMIS_HOME}/bin/"
-COPY --chown=root:root --chmod=0755 entrypoint /
-
-#
-# Create the required user/group
-#
-RUN groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
-    useradd  --uid "${APP_UID}" --gid "${APP_GROUP}" --groups "${ACM_GROUP}" --create-home --home-dir "${HOME_DIR}" "${APP_USER}"
-
-RUN --mount=type=bind,source=CVE,target=/CVE apply-fixes /CVE
-
-RUN rm -rf /tmp/* && \
+    /src/download-jul && \
+    install -o root -g root -m 0444 /src/curator-wrapper.yaml /usr/local/etc && \
+    install -o root -g root -m 0755 -t "${ARTEMIS_HOME}/bin/" /src/artemis /src/broker && \
+    install -o root -g root -m 0755 /src/entrypoint / && \
+    apply-fixes /src/CVE && \
+    rm -rf /tmp/* && \
+    groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
+    useradd  --uid "${APP_UID}" --gid "${APP_GROUP}" --groups "${ACM_GROUP}" --create-home --home-dir "${HOME_DIR}" "${APP_USER}" && \
     chown -R "${APP_USER}:${APP_GROUP}" "${BASE_DIR}" && \
     chmod -R "u=rwX,g=rX,o=" "${BASE_DIR}" && \
     chown root "${HOME_DIR}/bin"

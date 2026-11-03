@@ -130,7 +130,7 @@ RUN --mount=type=bind,target=/src \
     /src/download-jul && \
     install -o root -g root -m 0444 /src/curator-wrapper.yaml /usr/local/etc && \
     install -o root -g root -m 0755 -t "${ARTEMIS_HOME}/bin/" /src/artemis /src/broker && \
-    install -o root -g root -m 0755 /src/entrypoint / && \
+    install -o root -g root -m 0755 /src/entrypoint /usr/local/bin && \
     apply-fixes /src/CVE && \
     rm -rf /tmp/* && \
     groupadd --gid "${APP_GID}" "${APP_GROUP}" && \
@@ -147,5 +147,3 @@ USER "${APP_USER}"
 EXPOSE 8443
 EXPOSE 61613
 EXPOSE 61616
-
-ENTRYPOINT [ "/entrypoint" ]

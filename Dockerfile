@@ -112,7 +112,7 @@ ENV PATH="${HOME_DIR}/bin:${PATH}"
 # Do the actual installation
 #
 RUN --mount=type=bind,target=/src \
-    --mount=type=cache,from=artemis-src,target=/artemis-src,ro=true \
+    --mount=type=bind,from=artemis-src,target=/artemis-src,ro=true \
     --mount=type=secret,id=mvn_get_auth \
     set-java "${JAVA}" && \
     apt-get -y install \

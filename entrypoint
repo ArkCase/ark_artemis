@@ -164,7 +164,6 @@ ARTEMIS_SSL_OPTS=()
 # Key store
 ARTEMIS_SSL_OPTS+=(
 	-Dorg.apache.activemq.ssl.keyStore="${JAVA_KEYSTORE}"
-	-Dorg.apache.activemq.ssl.keyStorePassword="${JAVA_KEYSTORE_PASSWORD}"
 	-Dorg.apache.activemq.ssl.keyStoreType="${JAVA_KEYSTORE_TYPE}"
 )
 [ -n "${JAVA_KEYSTORE_PROVIDER:-}" ] && ARTEMIS_SSL_OPTS+=( -Dorg.apache.activemq.ssl.keyStoreProvider="${JAVA_KEYSTORE_PROVIDER}" )
@@ -172,10 +171,19 @@ ARTEMIS_SSL_OPTS+=(
 # Trust store
 ARTEMIS_SSL_OPTS+=(
 	-Dorg.apache.activemq.ssl.trustStore="${JAVA_TRUSTSTORE}"
-	-Dorg.apache.activemq.ssl.trustStorePassword="${JAVA_TRUSTSTORE_PASSWORD}"
 	-Dorg.apache.activemq.ssl.trustStoreType="${JAVA_TRUSTSTORE_TYPE}"
 )
 [ -n "${JAVA_TRUSTSTORE_PROVIDER:-}" ] && ARTEMIS_SSL_OPTS+=( -Dorg.apache.activemq.ssl.trustStoreProvider="${JAVA_TRUSTSTORE_PROVIDER}" )
+
+# Artemis reads the passwords from these system properties, which have no
+# password-file form, so they go in an argument file to keep them off the
+# command line
+ARTEMIS_SSL_ARGS="${TEMP_DIR}/.java-args.artemis"
+render_ssl_java_args "${ARTEMIS_SSL_ARGS}" \
+	-Dorg.apache.activemq.ssl.keyStorePassword="${JAVA_KEYSTORE_PASSWORD}" \
+	-Dorg.apache.activemq.ssl.trustStorePassword="${JAVA_TRUSTSTORE_PASSWORD}" \
+	|| fail "Failed to render the Artemis SSL argument file at [${ARTEMIS_SSL_ARGS}]"
+ARTEMIS_SSL_OPTS+=( "@${ARTEMIS_SSL_ARGS}" )
 
 # JUL to Log4J?
 LOG4J_JUL="$(find "${ARTEMIS_LIB}" -type f -name 'log4j-jul-*.jar' 2>&1)" || fail "Failed to check for the Log4J JUL bridge (rc=${?}): ${LOG4J_JUL}"
